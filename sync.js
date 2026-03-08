@@ -96,7 +96,12 @@ function buildNav(pages, currentSlug) {
     groups[section].push(p);
   }
 
-  let html = `<nav>\n<div class="nav-logo"><a href="/">0xnrg<span class="tld">.se</span></a></div>\n`;
+  // Use relative paths so the site works both on github.io/0xnrg.se/ and on 0xnrg.se/
+  const isSubpage = currentSlug !== null;
+  const base = isSubpage ? "../" : "";
+  const homeHref = isSubpage ? "../" : "./";
+
+  let html = `<nav>\n<div class="nav-logo"><a href="${homeHref}">0xnrg<span class="tld">.se</span></a></div>\n`;
 
   for (const [section, items] of Object.entries(groups)) {
     html += `<div class="nav-section">${section}</div>\n`;
@@ -105,7 +110,7 @@ function buildNav(pages, currentSlug) {
       const isLocked = item.status !== "Retired";
       const lockIcon = isLocked ? `<span class="lock">⌀</span>` : "";
       const cls = [isActive ? "active" : "", isLocked ? "locked" : ""].filter(Boolean).join(" ");
-      html += `<a href="/${item.slug}/" class="nav-link ${cls}">${item.name.toLowerCase()}${lockIcon}</a>\n`;
+      html += `<a href="${base}${item.slug}/" class="nav-link ${cls}">${item.name.toLowerCase()}${lockIcon}</a>\n`;
     }
     html += `<div class="nav-spacer"></div>\n`;
   }
@@ -171,7 +176,7 @@ function buildIndex(pages, nav) {
     const lockIcon = isLocked ? " ⌀" : "";
     const diff = p.difficulty ? `<span class="chip ${diffClass(p.difficulty)}">${p.difficulty}</span>` : "";
     return `<div style="display:flex;align-items:center;gap:16px;padding:12px 0;border-top:1px solid var(--border)">
-  <a href="/${p.slug}/" style="font-family:'IBM Plex Mono',monospace;font-size:13px;color:var(--text);text-decoration:none;min-width:160px;">${p.name.toLowerCase()}${lockIcon}</a>
+  <a href="${p.slug}/" style="font-family:'IBM Plex Mono',monospace;font-size:13px;color:var(--text);text-decoration:none;min-width:160px;">${p.name.toLowerCase()}${lockIcon}</a>
   ${diff}
   <span class="chip" style="font-size:10px;">${p.platform}</span>
   <span style="font-size:12px;color:var(--dim);">${p.os || ""}</span>
