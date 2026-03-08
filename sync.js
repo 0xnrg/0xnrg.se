@@ -1,7 +1,11 @@
 const { Client } = require("@notionhq/client");
 const { NotionToMarkdown } = require("notion-to-md");
+const { marked } = require("marked");
 const fs = require("fs");
 const path = require("path");
+
+// Configure marked: GFM (tables, strikethrough etc), no mangled links
+marked.setOptions({ gfm: true, breaks: false });
 
 const notion = new Client({ auth: process.env.NOTION_TOKEN });
 const n2m = new NotionToMarkdown({ notionClient: notion });
@@ -55,7 +59,18 @@ blockquote { border-left:2px solid var(--border2); padding-left:14px; color:var(
 hr { border:none; border-top:1px solid var(--border); margin:40px 0; }
 ul, ol { padding-left:20px; color:var(--muted); font-size:13px; margin-bottom:16px; }
 li { padding:3px 0; }
+li code { font-size:11.5px; }
 a { color:var(--muted); text-decoration:underline; text-underline-offset:3px; }
+/* tables */
+table { border-collapse:collapse; width:100%; margin:16px 0; font-size:13px; }
+thead tr { border-bottom:1px solid var(--border2); }
+th { font-family:'IBM Plex Mono',monospace; font-size:10px; color:var(--dim); text-transform:uppercase; letter-spacing:1.5px; padding:8px 12px; text-align:left; font-weight:400; }
+td { padding:9px 12px; color:var(--muted); border-bottom:1px solid var(--border); vertical-align:top; }
+td code { font-size:11px; }
+tr:last-child td { border-bottom:none; }
+/* strong/em in writeup body */
+strong { color:var(--text); font-weight:500; }
+em { color:var(--muted); font-style:italic; }
 /* lock */
 .lock-wrap { position:relative; max-width:760px; }
 .lock-inner { max-height:260px; overflow:hidden; }
@@ -213,46 +228,10 @@ ${nav}
 </html>`;
 }
 
-async function markdownToHtml(md) {
-  // Very simple md → html (handles code blocks, headings, paragraphs, inline code, bold)
-  let html = "";
-  const lines = md.split("\n");
-  let inPre = false;
-  let lang = "";
-  let preBuffer = [];
-
-  for (const line of lines) {
-    if (line.startsWith("```")) {
-      if (!inPre) {
-        inPre = true;
-        lang = line.slice(3).trim();
-        preBuffer = [];
-      } else {
-        inPre = false;
-        const escaped = preBuffer.join("\n").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");
-        html += `<pre><code>${escaped}</code></pre>\n`;
-        preBuffer = [];
-      }
-      continue;
-    }
-    if (inPre) { preBuffer.push(line); continue; }
-
-    if (line.startsWith("## ")) { html += `<h2>${line.slice(3)}</h2>\n`; continue; }
-    if (line.startsWith("### ")) { html += `<h3>${line.slice(4)}</h3>\n`; continue; }
-    if (line.startsWith("# ")) { continue; } // skip title, already in header
-    if (line.startsWith("> ")) { html += `<blockquote>${line.slice(2)}</blockquote>\n`; continue; }
-    if (line.startsWith("---")) { html += `<hr>\n`; continue; }
-    if (line.trim() === "") { continue; }
-
-    let l = line
-      .replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;")
-      .replace(/\*\*(.+?)\*\*/g, "<strong>$1</strong>")
-      .replace(/`([^`]+)`/g, "<code>$1</code>");
-
-    html += `<p>${l}</p>\n`;
-  }
-
-  return html;
+function markdownToHtml(md) {
+  // Strip the h1 title if notion-to-md adds it (already shown in page header)
+  const stripped = md.replace(/^#\s+.+\n?/, "");
+  return marked.parse(stripped);
 }
 
 async function main() {
@@ -309,27 +288,29 @@ async function main() {
 
     let bodyHtml = "";
 
-    // Only fetch full content if retired (or if we have a Notion page linked)
-    if (page.status === "Completed" && page.notionPageUrl) {
+    if (page.status === "Completed") {
+      // Extract the page ID from the linked Notion Page URL, falling back to the DB entry ID
+      let contentPageId = page.id;
+      if (page.notionPageUrl) {
+        const match = page.notionPageUrl.match(/([a-f0-9]{32})(?:[?#].*)?$/i);
+        if (match) {
+          // Insert dashes to form a valid UUID: 8-4-4-4-12
+          const h = match[1];
+          contentPageId = `${h.slice(0,8)}-${h.slice(8,12)}-${h.slice(12,16)}-${h.slice(16,20)}-${h.slice(20)}`;
+        }
+      }
       try {
-        const mdBlocks = await n2m.pageToMarkdown(page.id);
+        console.log(`  Fetching content from page: ${contentPageId}`);
+        const mdBlocks = await n2m.pageToMarkdown(contentPageId);
         const mdString = n2m.toMarkdownString(mdBlocks);
-        bodyHtml = await markdownToHtml(mdString.parent || "");
+        bodyHtml = markdownToHtml(mdString.parent || "");
+        if (!bodyHtml.trim()) bodyHtml = "<p>No content found on the linked Notion page.</p>";
       } catch (e) {
         console.warn(`  Could not fetch content for ${page.name}:`, e.message);
         bodyHtml = "<p>Content unavailable.</p>";
       }
-    } else if (page.status === "Completed") {
-      // No linked page — try fetching directly from the database entry
-      try {
-        const mdBlocks = await n2m.pageToMarkdown(page.id);
-        const mdString = n2m.toMarkdownString(mdBlocks);
-        bodyHtml = await markdownToHtml(mdString.parent || "");
-      } catch (e) {
-        bodyHtml = "<p>Content unavailable.</p>";
-      }
     } else {
-      // Active/locked — just show a stub (will be hidden behind lock anyway)
+      // Active/locked — stub hidden behind lock screen anyway
       bodyHtml = `<h2>Port Scanning</h2><p>Initial reconnaissance to map the attack surface.</p>`;
     }
 
