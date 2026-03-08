@@ -255,12 +255,14 @@ async function main() {
 
   if (!fs.existsSync(OUT_DIR)) fs.mkdirSync(OUT_DIR, { recursive: true });
 
-  // Query all HTB pages — lock logic handles NDA/active boxes
+  // Query all HTB Labs — exclude Pro Labs, Rooms, Challenges etc.
   const response = await notion.databases.query({
     database_id: DATABASE_ID,
     filter: {
-      property: "Platform",
-      select: { equals: "HTB" }
+      and: [
+        { property: "Platform",  select: { equals: "HTB" } },
+        { property: "Category",  select: { equals: "Lab" } }
+      ]
     },
     sorts: [{ property: "Name", direction: "ascending" }]
   });
