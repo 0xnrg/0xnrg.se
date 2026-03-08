@@ -33,7 +33,7 @@ nav { border-right:1px solid var(--border); padding:48px 0; position:sticky; top
 .nav-link { display:flex; align-items:center; justify-content:space-between; padding:9px 28px; color:var(--muted); font-size:13px; font-family:'IBM Plex Mono',monospace; font-weight:300; text-decoration:none; border-left:2px solid transparent; transition:color .15s; }
 .nav-link:hover { color:var(--text); }
 .nav-link.active { color:var(--white); border-left-color:#777; }
-.nav-link.locked { opacity:.4; pointer-events:none; }
+.nav-link.locked { opacity:.5; }
 .nav-link .lock { font-size:11px; color:var(--dim); }
 .nav-spacer { height:24px; }
 main { padding:56px 72px; max-width:860px; }
@@ -255,14 +255,12 @@ async function main() {
 
   if (!fs.existsSync(OUT_DIR)) fs.mkdirSync(OUT_DIR, { recursive: true });
 
-  // Query all pages from the database
+  // Query all HTB pages — lock logic handles NDA/active boxes
   const response = await notion.databases.query({
     database_id: DATABASE_ID,
     filter: {
-      or: [
-        { property: "Status", select: { equals: "Retired" } },
-        { property: "Status", select: { equals: "Completed" } },
-      ]
+      property: "Platform",
+      select: { equals: "HTB" }
     },
     sorts: [{ property: "Name", direction: "ascending" }]
   });
@@ -333,8 +331,10 @@ async function main() {
     fs.writeFileSync(path.join(pageDir, "index.html"), html);
   }
 
-  // Write CNAME
+  // Write CNAME + .nojekyll (prevents GitHub Pages from running Jekyll,
+  // which would otherwise mangle paths and cause 404s on subfolders)
   fs.writeFileSync(path.join(OUT_DIR, "CNAME"), "0xnrg.se");
+  fs.writeFileSync(path.join(OUT_DIR, ".nojekyll"), "");
 
   console.log("Done. Output in ./dist/");
 }
