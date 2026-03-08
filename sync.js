@@ -107,7 +107,7 @@ function buildNav(pages, currentSlug) {
     html += `<div class="nav-section">${section}</div>\n`;
     for (const item of items) {
       const isActive = item.slug === currentSlug;
-      const isLocked = item.status !== "Retired";
+      const isLocked = item.status !== "Completed";
       const lockIcon = isLocked ? `<span class="lock">⌀</span>` : "";
       const cls = [isActive ? "active" : "", isLocked ? "locked" : ""].filter(Boolean).join(" ");
       html += `<a href="${base}${item.slug}/" class="nav-link ${cls}">${item.name.toLowerCase()}${lockIcon}</a>\n`;
@@ -120,7 +120,7 @@ function buildNav(pages, currentSlug) {
 }
 
 function buildPage(page, nav, bodyHtml) {
-  const isLocked = page.status !== "Retired";
+  const isLocked = page.status !== "Completed";
   const focusTags = (page.focus || []).map(f => `<span class="chip">${f}</span>`).join("");
   const osTags = page.os ? `<span class="chip">${page.os}</span>` : "";
   const diffTag = page.difficulty ? `<span class="chip ${diffClass(page.difficulty)}">${page.difficulty}</span>` : "";
@@ -172,7 +172,7 @@ ${nav}
 
 function buildIndex(pages, nav) {
   const rows = pages.map(p => {
-    const isLocked = p.status !== "Retired";
+    const isLocked = p.status !== "Completed";
     const lockIcon = isLocked ? " ⌀" : "";
     const diff = p.difficulty ? `<span class="chip ${diffClass(p.difficulty)}">${p.difficulty}</span>` : "";
     return `<div style="display:flex;align-items:center;gap:16px;padding:12px 0;border-top:1px solid var(--border)">
@@ -310,7 +310,7 @@ async function main() {
     let bodyHtml = "";
 
     // Only fetch full content if retired (or if we have a Notion page linked)
-    if (page.status === "Retired" && page.notionPageUrl) {
+    if (page.status === "Completed" && page.notionPageUrl) {
       try {
         const mdBlocks = await n2m.pageToMarkdown(page.id);
         const mdString = n2m.toMarkdownString(mdBlocks);
@@ -319,7 +319,7 @@ async function main() {
         console.warn(`  Could not fetch content for ${page.name}:`, e.message);
         bodyHtml = "<p>Content unavailable.</p>";
       }
-    } else if (page.status === "Retired") {
+    } else if (page.status === "Completed") {
       // No linked page — try fetching directly from the database entry
       try {
         const mdBlocks = await n2m.pageToMarkdown(page.id);
