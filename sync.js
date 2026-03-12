@@ -35,12 +35,8 @@ nav { border-right:1px solid var(--border); padding:40px 0; position:sticky; top
 .nav-logo { padding:0 28px 36px; border-bottom:1px solid var(--border); margin-bottom:24px; }
 .nav-logo a { font-family:'IBM Plex Mono',monospace; font-size:15px; font-weight:500; color:var(--white); text-decoration:none; letter-spacing:.5px; }
 .nav-logo .tld { color:var(--muted); font-weight:300; }
-.nav-section { padding:10px 28px 12px; color:var(--dim); font-family:'IBM Plex Mono',monospace; font-size:10px; text-transform:uppercase; letter-spacing:2px; }
-.nav-link { display:flex; align-items:center; justify-content:space-between; padding:8px 28px; color:var(--muted); font-size:12.5px; font-family:'IBM Plex Mono',monospace; font-weight:300; text-decoration:none; border-left:2px solid transparent; transition:color .15s; }
-.nav-link:hover { color:var(--text); }
-.nav-link.active { color:var(--white); border-left-color:var(--accent); }
-.nav-link.locked { opacity:.4; }
-.nav-link .lock { font-size:10px; color:var(--dim); }
+.nav-htb { display:block; padding:10px 28px; color:var(--dim); font-family:'IBM Plex Mono',monospace; font-size:10px; text-transform:uppercase; letter-spacing:2px; text-decoration:none; transition:color .15s; }
+.nav-htb:hover { color:var(--muted); opacity:1; }
 
 /* ── MAIN ── */
 main { padding:52px 68px; max-width:900px; }
@@ -100,7 +96,10 @@ em { color:var(--muted); font-style:italic; }
 .index-meta { display:flex; gap:6px; margin-top:6px; flex-wrap:wrap; align-items:center; }
 
 /* ── LOCK ── */
-.lock-card { margin-top:8px; border:1px solid var(--border2); border-radius:5px; padding:28px 32px; max-width:540px; background:var(--surface); }
+.lock-wrap { position:relative; }
+.lock-inner { max-height:420px; overflow:hidden; }
+.lock-fade { position:absolute; bottom:0; left:0; right:0; height:180px; background:linear-gradient(to bottom, transparent 0%, var(--bg) 100%); pointer-events:none; }
+.lock-card { margin-top:32px; border:1px solid var(--border2); border-radius:5px; padding:28px 32px; max-width:540px; background:var(--surface); }
 .lock-card h3 { font-family:'IBM Plex Mono',monospace; font-size:12.5px; font-weight:500; color:var(--white); margin:0 0 10px; letter-spacing:.3px; text-transform:none; }
 .lock-card p { font-size:13px; color:var(--muted); margin-bottom:0; }
 .lock-card .eta { font-family:'IBM Plex Mono',monospace; font-size:11px; color:var(--dim); margin-top:18px; padding-top:18px; border-top:1px solid var(--border); }
@@ -164,20 +163,10 @@ function copyFavicon() {
 // ── buildNav ─────────────────────────────────────────────────────────────────
 function buildNav(pages, currentSlug) {
   const isSubpage = currentSlug !== null;
-  const base = isSubpage ? "../" : "";
   const homeHref = isSubpage ? "../" : "./";
 
   let html = `<nav>\n<div class="nav-logo"><a href="${homeHref}">0xnrg<span class="tld">.se</span></a></div>\n`;
-  html += `<div class="nav-section">Hack The Box</div>\n`;
-
-  for (const item of pages) {
-    const isActive = item.slug === currentSlug;
-    const isLocked = item.status !== "Completed";
-    const lockIcon = isLocked ? `<span class="lock">⌀</span>` : "";
-    const cls = [isActive ? "active" : "", isLocked ? "locked" : ""].filter(Boolean).join(" ");
-    html += `<a href="${base}${item.slug}/" class="nav-link ${cls}">${item.name.toLowerCase()} ${lockIcon}</a>\n`;
-  }
-
+  html += `<a href="${homeHref}" class="nav-htb">Hack The Box</a>\n`;
   html += `</nav>\n`;
   return html;
 }
@@ -193,9 +182,12 @@ function buildPage(page, nav, bodyHtml, faviconFile) {
     ? `<img src="${page.icon}" class="box-icon" alt="${page.name}">`
     : `<div class="icon-placeholder"></div>`;
 
-  // SECURITY: locked pages never include actual content in the HTML source
   const contentHtml = isLocked
-    ? `<div class="lock-card">
+    ? `<div class="lock-wrap">
+  <div class="lock-inner">${bodyHtml}</div>
+  <div class="lock-fade"></div>
+</div>
+<div class="lock-card">
   <div style="font-size:16px;color:var(--dim);margin-bottom:14px;">—</div>
   <h3>Writeup restricted</h3>
   <p>This machine is currently active. The full writeup will be published once the box retires, in accordance with HTB's NDA policy.</p>
@@ -333,21 +325,15 @@ async function main() {
     try {
       console.log(`  [${page.status}] ${page.name} → ${contentPageId}`);
 
-      if (isLocked) {
-        // Locked: only fetch icon — content is never written to HTML source
-        const pageMeta = await notion.pages.retrieve({ page_id: contentPageId });
-        page.icon = pageMeta.icon?.external?.url || pageMeta.icon?.file?.url || null;
-      } else {
-        // Unlocked: fetch icon + full content in parallel
-        const [pageMeta, mdBlocks] = await Promise.all([
-          notion.pages.retrieve({ page_id: contentPageId }),
-          n2m.pageToMarkdown(contentPageId)
-        ]);
-        page.icon = pageMeta.icon?.external?.url || pageMeta.icon?.file?.url || null;
-        const mdString = n2m.toMarkdownString(mdBlocks);
-        page.bodyHtml = markdownToHtml(mdString.parent || "");
-        if (!page.bodyHtml.trim()) page.bodyHtml = "<p>No content found on the linked Notion page.</p>";
-      }
+      // Fetch icon + content for all pages (locked pages use content for the preview fade)
+      const [pageMeta, mdBlocks] = await Promise.all([
+        notion.pages.retrieve({ page_id: contentPageId }),
+        n2m.pageToMarkdown(contentPageId)
+      ]);
+      page.icon = pageMeta.icon?.external?.url || pageMeta.icon?.file?.url || null;
+      const mdString = n2m.toMarkdownString(mdBlocks);
+      page.bodyHtml = markdownToHtml(mdString.parent || "");
+      if (!page.bodyHtml.trim()) page.bodyHtml = "<p>No content found on the linked Notion page.</p>";
 
     } catch (e) {
       console.warn(`  Could not fetch ${page.name}:`, e.message);
