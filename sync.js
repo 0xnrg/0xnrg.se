@@ -9,8 +9,9 @@ const n2m = new NotionToMarkdown({ notionClient: notion });
 
 marked.setOptions({ gfm: true, breaks: false });
 
-const DATABASE_ID = process.env.NOTION_DATABASE_ID;
-const CERT_DB_ID  = "1a08e775abfd4d9188dad53470aad0b4";
+const DATABASE_ID  = process.env.NOTION_DATABASE_ID;
+const CERT_DB_ID   = "1a08e775abfd4d9188dad53470aad0b4";
+const ABOUT_PAGE_ID = "32183ed0-ddc8-81a2-9d30-cc6d8a87863c";
 const OUT_DIR = "./dist";
 
 // ── CSS ──────────────────────────────────────────────────────────────────────
@@ -216,7 +217,7 @@ function buildNav(depth, activePlatform) {
 }
 
 // ── buildAboutPage ────────────────────────────────────────────────────────────
-function buildAboutPage(nav, certs, faviconFile) {
+function buildAboutPage(nav, certs, bioHtml, faviconFile) {
   const achieved = certs.filter(c => c.status === "Achieved");
   const goals    = certs.filter(c => c.status !== "Achieved");
 
@@ -257,9 +258,7 @@ ${nav}
   <h1>0xnrg</h1>
 
   <div class="about-bio">
-    <p>Offensive security practitioner with a focus on Active Directory exploitation, red team operations, and adversary simulation.</p>
-    <p>Passionate about understanding systems at a low level — from Windows internals and ADCS abuse to custom tooling and CTF research. Currently pursuing the full OffSec and HTB certification tracks.</p>
-    <p>This site documents writeups and attack chains from labs across Hack The Box, VulnLab, OffSec, and TryHackMe.</p>
+    ${bioHtml}
   </div>
 
   <h2>Certifications</h2>
@@ -426,6 +425,20 @@ ${nav}
 </html>`;
 }
 
+// ── fetchAbout ────────────────────────────────────────────────────────────────
+async function fetchAbout() {
+  console.log("Fetching About Me page from Notion...");
+  try {
+    const mdBlocks = await n2m.pageToMarkdown(ABOUT_PAGE_ID);
+    const mdString = n2m.toMarkdownString(mdBlocks);
+    const html = markdownToHtml(mdString.parent || "");
+    return html.trim() || "<p>No bio content found.</p>";
+  } catch (e) {
+    console.warn("Could not fetch About Me page:", e.message);
+    return "<p>Bio unavailable.</p>";
+  }
+}
+
 // ── fetchCerts ────────────────────────────────────────────────────────────────
 async function fetchCerts() {
   console.log("Fetching certifications from Notion...");
@@ -461,8 +474,8 @@ async function main() {
 
   if (!fs.existsSync(OUT_DIR)) fs.mkdirSync(OUT_DIR, { recursive: true });
 
-  // Fetch certifications for About page
-  const certs = await fetchCerts();
+  // Fetch About Me bio + certifications in parallel
+  const [bioHtml, certs] = await Promise.all([fetchAbout(), fetchCerts()]);
   console.log(`Found ${certs.length} certifications`);
 
   // Query HTB Labs, newest first (created_time descending)
@@ -523,7 +536,7 @@ async function main() {
 
   // ── About page at dist/index.html (root, depth=0) ──
   const aboutNav  = buildNav(0, "about");
-  const aboutHtml = buildAboutPage(aboutNav, certs, faviconFile);
+  const aboutHtml = buildAboutPage(aboutNav, certs, bioHtml, faviconFile);
   fs.writeFileSync(path.join(OUT_DIR, "index.html"), aboutHtml);
   console.log("Built index.html (About)");
 
