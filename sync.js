@@ -10,6 +10,7 @@ const n2m = new NotionToMarkdown({ notionClient: notion });
 marked.setOptions({ gfm: true, breaks: false });
 
 const DATABASE_ID = process.env.NOTION_DATABASE_ID;
+const CERT_DB_ID  = "1a08e775abfd4d9188dad53470aad0b4";
 const OUT_DIR = "./dist";
 
 // ── CSS ──────────────────────────────────────────────────────────────────────
@@ -36,8 +37,12 @@ nav { border-right:1px solid var(--border); padding:40px 0; position:sticky; top
 .nav-logo a { font-family:'IBM Plex Mono',monospace; font-size:15px; font-weight:500; color:var(--white); text-decoration:none; letter-spacing:.5px; }
 .nav-logo .tld { color:var(--muted); font-weight:300; }
 .nav-platform { display:block; padding:9px 28px; color:var(--dim); font-family:'IBM Plex Mono',monospace; font-size:10px; text-transform:uppercase; letter-spacing:2px; text-decoration:none; transition:color .15s; }
-.nav-platform:hover { color:var(--muted); opacity:1; }
+.nav-platform:hover { color:var(--muted); }
 .nav-platform.active { color:var(--white); border-left:2px solid var(--accent); padding-left:26px; }
+.nav-sep { height:1px; background:var(--border); margin:20px 28px; }
+.nav-about { display:block; padding:9px 28px; color:var(--dim); font-family:'IBM Plex Mono',monospace; font-size:10px; text-transform:uppercase; letter-spacing:2px; text-decoration:none; transition:color .15s; }
+.nav-about:hover { color:var(--muted); }
+.nav-about.active { color:var(--white); border-left:2px solid var(--accent); padding-left:26px; }
 
 /* ── MAIN ── */
 main { padding:52px 68px; max-width:900px; }
@@ -105,6 +110,15 @@ em { color:var(--muted); font-style:italic; }
 .lock-card p { font-size:13px; color:var(--muted); margin-bottom:0; }
 .lock-card .eta { font-family:'IBM Plex Mono',monospace; font-size:11px; color:var(--dim); margin-top:18px; padding-top:18px; border-top:1px solid var(--border); }
 
+/* ── ABOUT PAGE ── */
+.about-role { font-family:'IBM Plex Mono',monospace; font-size:10.5px; color:var(--dim); text-transform:uppercase; letter-spacing:2px; margin-bottom:14px; }
+.about-bio { max-width:580px; margin:20px 0 52px; }
+.about-bio p { font-size:13.5px; line-height:1.9; color:var(--text); margin-bottom:14px; }
+.cert-table-wrap { margin-bottom:44px; }
+.cert-achieved { color:#98c379; font-family:'IBM Plex Mono',monospace; font-size:10px; letter-spacing:.5px; }
+.cert-inprogress { color:#e5c07b; font-family:'IBM Plex Mono',monospace; font-size:10px; letter-spacing:.5px; }
+.cert-goal { color:var(--dim); font-family:'IBM Plex Mono',monospace; font-size:10px; letter-spacing:.5px; }
+
 /* ── SCROLLBAR ── */
 ::-webkit-scrollbar { width:3px; }
 ::-webkit-scrollbar-thumb { background:var(--border2); border-radius:2px; }
@@ -148,6 +162,14 @@ function markdownToHtml(md) {
   return marked.parse(stripped);
 }
 
+// Returns a relative path prefix for the given depth level
+// depth 0 = dist/          → "./"
+// depth 1 = dist/htb/      → "../"
+// depth 2 = dist/htb/slug/ → "../../"
+function pathPrefix(depth) {
+  return depth === 0 ? "./" : "../".repeat(depth);
+}
+
 // Copy favicon from repo root to dist, return filename or null
 function copyFavicon() {
   for (const ext of ["ico", "png", "svg"]) {
@@ -161,28 +183,115 @@ function copyFavicon() {
   return null;
 }
 
+function faviconTag(faviconFile, depth) {
+  if (!faviconFile) return "";
+  return `<link rel="icon" href="${pathPrefix(depth)}${faviconFile}">`;
+}
+
 const PLATFORMS = [
-  { key: "htb",        label: "Hack The Box", slug: ""          },
+  { key: "htb",        label: "Hack The Box", slug: "htb"       },
   { key: "vulnlab",    label: "VulnLab",       slug: "vulnlab"   },
   { key: "offsec",     label: "OffSec",        slug: "offsec"    },
   { key: "tryhackme",  label: "TryHackMe",     slug: "tryhackme" },
 ];
 
 // ── buildNav ─────────────────────────────────────────────────────────────────
-function buildNav(pages, currentSlug, currentPlatform) {
-  const isSubpage = currentSlug !== null || (currentPlatform && currentPlatform !== "htb");
-  const root = isSubpage ? "../" : "./";
+// depth: 0 = root, 1 = platform index, 2 = writeup page
+// activePlatform: "htb" | "vulnlab" | "offsec" | "tryhackme" | "about"
+function buildNav(depth, activePlatform) {
+  const prefix = pathPrefix(depth);
 
-  let html = `<nav>\n<div class="nav-logo"><a href="${root}">0xnrg<span class="tld">.se</span></a></div>\n`;
+  let html = `<nav>\n<div class="nav-logo"><a href="${prefix}">0xnrg<span class="tld">.se</span></a></div>\n`;
 
   for (const p of PLATFORMS) {
-    const href = p.slug === "" ? root : `${root}${p.slug}/`;
-    const isActive = p.key === (currentPlatform || "htb");
+    const href = `${prefix}${p.slug}/`;
+    const isActive = p.key === activePlatform;
     html += `<a href="${href}" class="nav-platform${isActive ? " active" : ""}">${p.label}</a>\n`;
   }
 
+  html += `<div class="nav-sep"></div>\n`;
+  html += `<a href="${prefix}" class="nav-about${activePlatform === "about" ? " active" : ""}">About</a>\n`;
   html += `</nav>\n`;
   return html;
+}
+
+// ── buildAboutPage ────────────────────────────────────────────────────────────
+function buildAboutPage(nav, certs, faviconFile) {
+  const achieved = certs.filter(c => c.status === "Achieved");
+  const goals    = certs.filter(c => c.status !== "Achieved");
+
+  const achievedRows = achieved.map(c => {
+    const year = c.dateAchieved ? c.dateAchieved.slice(0, 4) : "—";
+    return `<tr>
+  <td><strong>${c.name}</strong></td>
+  <td>${c.provider}</td>
+  <td>${year}</td>
+</tr>`;
+  }).join("\n");
+
+  const goalRows = goals.map(c => {
+    const statusClass = c.status === "In Progress" ? "cert-inprogress" : "cert-goal";
+    const statusLabel = c.status === "In Progress" ? "in progress" : "goal";
+    return `<tr>
+  <td><strong>${c.name}</strong></td>
+  <td>${c.provider}</td>
+  <td><span class="${statusClass}">${statusLabel}</span></td>
+</tr>`;
+  }).join("\n");
+
+  return `<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>0xnrg.se</title>
+${faviconTag(faviconFile, 0)}
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@300;400;500&family=IBM+Plex+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+<style>${CSS}</style>
+</head>
+<body>
+<div class="shell">
+${nav}
+<main>
+  <div class="about-role">Senior Cyber Security Consultant</div>
+  <h1>0xnrg</h1>
+
+  <div class="about-bio">
+    <p>Offensive security practitioner with a focus on Active Directory exploitation, red team operations, and adversary simulation.</p>
+    <p>Passionate about understanding systems at a low level — from Windows internals and ADCS abuse to custom tooling and CTF research. Currently pursuing the full OffSec and HTB certification tracks.</p>
+    <p>This site documents writeups and attack chains from labs across Hack The Box, VulnLab, OffSec, and TryHackMe.</p>
+  </div>
+
+  <h2>Certifications</h2>
+
+  <h3>Achieved</h3>
+  <div class="cert-table-wrap">
+    <table>
+      <thead>
+        <tr><th>Certification</th><th>Provider</th><th>Year</th></tr>
+      </thead>
+      <tbody>
+        ${achievedRows}
+      </tbody>
+    </table>
+  </div>
+
+  <h3>Goals</h3>
+  <div class="cert-table-wrap">
+    <table>
+      <thead>
+        <tr><th>Certification</th><th>Provider</th><th>Status</th></tr>
+      </thead>
+      <tbody>
+        ${goalRows}
+      </tbody>
+    </table>
+  </div>
+
+</main>
+</div>
+</body>
+</html>`;
 }
 
 // ── buildPage ─────────────────────────────────────────────────────────────────
@@ -209,17 +318,13 @@ function buildPage(page, nav, bodyHtml, faviconFile) {
 </div>`
     : bodyHtml;
 
-  const faviconLink = faviconFile
-    ? `<link rel="icon" href="../${faviconFile}">`
-    : "";
-
   return `<!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>${page.name} — 0xnrg.se</title>
-${faviconLink}
+${faviconTag(faviconFile, 2)}
 <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@300;400;500&family=IBM+Plex+Sans:wght@300;400;500&display=swap" rel="stylesheet">
 ${HLJS_HEAD}
 <style>${CSS}</style>
@@ -246,14 +351,13 @@ ${nav}
 
 // ── buildPlatformPage ─────────────────────────────────────────────────────────
 function buildPlatformPage(label, nav, faviconFile) {
-  const faviconLink = faviconFile ? `<link rel="icon" href="../${faviconFile}">` : "";
   return `<!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>${label} — 0xnrg.se</title>
-${faviconLink}
+${faviconTag(faviconFile, 1)}
 <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@300;400;500&family=IBM+Plex+Sans:wght@300;400;500&display=swap" rel="stylesheet">
 <style>${CSS}</style>
 </head>
@@ -275,6 +379,7 @@ ${nav}
 }
 
 // ── buildIndex ────────────────────────────────────────────────────────────────
+// Generates dist/htb/index.html (depth=1)
 function buildIndex(pages, nav, faviconFile) {
   const rows = pages.map(p => {
     const isLocked = p.status !== "Completed";
@@ -294,17 +399,13 @@ function buildIndex(pages, nav, faviconFile) {
 </a>`;
   }).join("\n");
 
-  const faviconLink = faviconFile
-    ? `<link rel="icon" href="./${faviconFile}">`
-    : "";
-
   return `<!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>0xnrg.se</title>
-${faviconLink}
+<title>Hack The Box — 0xnrg.se</title>
+${faviconTag(faviconFile, 1)}
 <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@300;400;500&family=IBM+Plex+Sans:wght@300;400;500&display=swap" rel="stylesheet">
 <style>${CSS}</style>
 </head>
@@ -325,11 +426,38 @@ ${nav}
 </html>`;
 }
 
+// ── fetchCerts ────────────────────────────────────────────────────────────────
+async function fetchCerts() {
+  console.log("Fetching certifications from Notion...");
+  const response = await notion.databases.query({
+    database_id: CERT_DB_ID,
+    sorts: [
+      { property: "Status", direction: "ascending" },
+      { property: "Name",   direction: "ascending"  }
+    ]
+  });
+
+  return response.results.map(r => {
+    const props = r.properties;
+    return {
+      name:         props.Name?.title?.[0]?.plain_text || "",
+      provider:     props.Provider?.select?.name || "",
+      status:       props.Status?.select?.name || "",
+      dateAchieved: props["Date Achieved"]?.date?.start || null,
+      notes:        props.Notes?.rich_text?.[0]?.plain_text || ""
+    };
+  });
+}
+
 // ── main ──────────────────────────────────────────────────────────────────────
 async function main() {
   console.log("Fetching Notion database...");
 
   if (!fs.existsSync(OUT_DIR)) fs.mkdirSync(OUT_DIR, { recursive: true });
+
+  // Fetch certifications for About page
+  const certs = await fetchCerts();
+  console.log(`Found ${certs.length} certifications`);
 
   // Query HTB Labs, newest first (created_time descending)
   const response = await notion.databases.query({
@@ -364,12 +492,10 @@ async function main() {
 
   for (const page of pages) {
     const contentPageId = extractContentPageId(page);
-    const isLocked = page.status !== "Completed";
 
     try {
       console.log(`  [${page.status}] ${page.name} → ${contentPageId}`);
 
-      // Fetch icon + content for all pages (locked pages use content for the preview fade)
       const [pageMeta, mdBlocks] = await Promise.all([
         notion.pages.retrieve({ page_id: contentPageId }),
         n2m.pageToMarkdown(contentPageId)
@@ -389,29 +515,37 @@ async function main() {
   // Copy favicon if present
   const faviconFile = copyFavicon();
 
-  // Build nav + HTB index
-  const indexNav = buildNav(pages, null, "htb");
-  const indexHtml = buildIndex(pages, indexNav, faviconFile);
-  fs.writeFileSync(path.join(OUT_DIR, "index.html"), indexHtml);
-  console.log("Built index.html");
+  // ── About page at dist/index.html (root, depth=0) ──
+  const aboutNav  = buildNav(0, "about");
+  const aboutHtml = buildAboutPage(aboutNav, certs, faviconFile);
+  fs.writeFileSync(path.join(OUT_DIR, "index.html"), aboutHtml);
+  console.log("Built index.html (About)");
 
-  // Build individual writeup pages
+  // ── HTB index at dist/htb/index.html (depth=1) ──
+  const htbDir = path.join(OUT_DIR, "htb");
+  if (!fs.existsSync(htbDir)) fs.mkdirSync(htbDir, { recursive: true });
+  const htbNav  = buildNav(1, "htb");
+  const htbHtml = buildIndex(pages, htbNav, faviconFile);
+  fs.writeFileSync(path.join(htbDir, "index.html"), htbHtml);
+  console.log("Built htb/index.html");
+
+  // ── Individual writeup pages at dist/htb/{slug}/index.html (depth=2) ──
   for (const page of pages) {
-    const pageDir = path.join(OUT_DIR, page.slug);
+    const pageDir = path.join(OUT_DIR, "htb", page.slug);
     if (!fs.existsSync(pageDir)) fs.mkdirSync(pageDir, { recursive: true });
 
-    const nav = buildNav(pages, page.slug, "htb");
+    const nav  = buildNav(2, "htb");
     const html = buildPage(page, nav, page.bodyHtml, faviconFile);
     fs.writeFileSync(path.join(pageDir, "index.html"), html);
-    console.log(`Built: ${page.slug}/`);
+    console.log(`Built: htb/${page.slug}/`);
   }
 
-  // Build placeholder pages for other platforms
+  // ── Platform placeholder pages at dist/{slug}/index.html (depth=1) ──
   for (const p of PLATFORMS) {
-    if (p.slug === "") continue; // HTB is the root index
+    if (p.key === "htb") continue; // HTB handled above
     const dir = path.join(OUT_DIR, p.slug);
     if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
-    const nav = buildNav(pages, null, p.key);
+    const nav  = buildNav(1, p.key);
     const html = buildPlatformPage(p.label, nav, faviconFile);
     fs.writeFileSync(path.join(dir, "index.html"), html);
     console.log(`Built: ${p.slug}/`);
