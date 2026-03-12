@@ -446,8 +446,7 @@ async function fetchCerts() {
     const response = await notion.databases.query({
       database_id: CERT_DB_ID,
       sorts: [
-        { property: "Status", direction: "ascending" },
-        { property: "Name",   direction: "ascending"  }
+        { property: "Status", direction: "ascending" }
       ]
     });
 
