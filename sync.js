@@ -253,7 +253,7 @@ ${faviconTag(faviconFile, 0)}
 <div class="shell">
 ${nav}
 <main>
-  <div class="about-role">Senior Cyber Security Consultant</div>
+  <div class="about-role">Cyber Security Consultant</div>
   <h1>0xnrg</h1>
 
   <div class="about-bio">
