@@ -35,18 +35,12 @@ nav { border-right:1px solid var(--border); padding:40px 0; position:sticky; top
 .nav-logo { padding:0 28px 36px; border-bottom:1px solid var(--border); margin-bottom:24px; }
 .nav-logo a { font-family:'IBM Plex Mono',monospace; font-size:15px; font-weight:500; color:var(--white); text-decoration:none; letter-spacing:.5px; }
 .nav-logo .tld { color:var(--muted); font-weight:300; }
-.nav-toggle { display:flex; align-items:center; justify-content:space-between; width:100%; padding:10px 28px; background:none; border:none; cursor:pointer; color:var(--dim); font-family:'IBM Plex Mono',monospace; font-size:10px; text-transform:uppercase; letter-spacing:2px; transition:color .15s; }
-.nav-toggle:hover { color:var(--muted); }
-.nav-toggle .chevron { font-style:normal; font-size:9px; transition:transform .2s; display:inline-block; }
-.nav-toggle.open .chevron { transform:rotate(180deg); }
-.nav-items { overflow:hidden; max-height:2000px; transition:max-height .3s ease; }
-.nav-items.collapsed { max-height:0; }
+.nav-section { padding:10px 28px 12px; color:var(--dim); font-family:'IBM Plex Mono',monospace; font-size:10px; text-transform:uppercase; letter-spacing:2px; }
 .nav-link { display:flex; align-items:center; justify-content:space-between; padding:8px 28px; color:var(--muted); font-size:12.5px; font-family:'IBM Plex Mono',monospace; font-weight:300; text-decoration:none; border-left:2px solid transparent; transition:color .15s; }
 .nav-link:hover { color:var(--text); }
 .nav-link.active { color:var(--white); border-left-color:var(--accent); }
 .nav-link.locked { opacity:.4; }
 .nav-link .lock { font-size:10px; color:var(--dim); }
-.nav-spacer { height:16px; }
 
 /* ── MAIN ── */
 main { padding:52px 68px; max-width:900px; }
@@ -74,7 +68,6 @@ p { color:var(--text); font-size:13px; margin-bottom:14px; }
 pre { border-radius:5px; padding:18px 22px; font-family:'IBM Plex Mono',monospace; font-size:12.5px; line-height:1.8; overflow-x:auto; margin:14px 0; border:1px solid var(--border2); background:var(--code-bg); }
 code { font-family:'IBM Plex Mono',monospace; font-size:12px; color:#abb2bf; background:var(--surface); border:1px solid var(--border2); padding:1px 6px; border-radius:3px; }
 pre code { background:none !important; border:none !important; padding:0 !important; font-size:12.5px; }
-/* Override hljs background to match site */
 .hljs { background:var(--code-bg) !important; }
 
 blockquote { border-left:2px solid var(--border2); padding:2px 0 2px 14px; color:var(--muted); font-size:13px; margin:16px 0; }
@@ -96,22 +89,18 @@ strong { color:var(--white); font-weight:500; }
 em { color:var(--muted); font-style:italic; }
 
 /* ── INDEX ROWS ── */
-.index-row { display:flex; align-items:center; gap:18px; padding:14px 0; border-top:1px solid var(--border); text-decoration:none; }
+.index-row { display:flex; align-items:center; gap:20px; padding:20px 0; border-top:1px solid var(--border); text-decoration:none; }
 .index-row:hover .index-name { color:var(--white); }
 .index-icon { flex-shrink:0; }
-.index-icon img { width:38px; height:38px; border-radius:50%; object-fit:cover; border:1px solid var(--border2); display:block; }
-.index-icon-placeholder { width:38px; height:38px; border-radius:50%; background:var(--surface); border:1px solid var(--border); }
+.index-icon img { width:48px; height:48px; border-radius:50%; object-fit:cover; border:1px solid var(--border2); display:block; }
+.index-icon-placeholder { width:48px; height:48px; border-radius:50%; background:var(--surface); border:1px solid var(--border); }
 .index-info { flex:1; min-width:0; }
-.index-name { font-family:'IBM Plex Mono',monospace; font-size:13px; color:var(--text); transition:color .15s; display:flex; align-items:center; gap:6px; }
-.index-name .lock { font-size:10px; color:var(--dim); }
-.index-meta { display:flex; gap:6px; margin-top:5px; flex-wrap:wrap; align-items:center; }
-.index-chips { display:flex; gap:6px; align-items:center; flex-shrink:0; }
+.index-name { font-family:'IBM Plex Mono',monospace; font-size:15px; color:var(--text); transition:color .15s; display:flex; align-items:center; gap:8px; }
+.index-name .lock { font-size:11px; color:var(--dim); }
+.index-meta { display:flex; gap:6px; margin-top:6px; flex-wrap:wrap; align-items:center; }
 
 /* ── LOCK ── */
-.lock-wrap { position:relative; }
-.lock-inner { max-height:500px; overflow:hidden; }
-.lock-fade { position:absolute; bottom:0; left:0; right:0; height:200px; background:linear-gradient(to bottom, transparent 0%, var(--bg) 100%); pointer-events:none; }
-.lock-card { margin-top:36px; border:1px solid var(--border2); border-radius:5px; padding:28px 32px; max-width:540px; background:var(--surface); }
+.lock-card { margin-top:8px; border:1px solid var(--border2); border-radius:5px; padding:28px 32px; max-width:540px; background:var(--surface); }
 .lock-card h3 { font-family:'IBM Plex Mono',monospace; font-size:12.5px; font-weight:500; color:var(--white); margin:0 0 10px; letter-spacing:.3px; text-transform:none; }
 .lock-card p { font-size:13px; color:var(--muted); margin-bottom:0; }
 .lock-card .eta { font-family:'IBM Plex Mono',monospace; font-size:11px; color:var(--dim); margin-top:18px; padding-top:18px; border-top:1px solid var(--border); }
@@ -129,17 +118,9 @@ const HLJS_HEAD = `
 <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/languages/xml.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/languages/javascript.min.js"></script>`;
 
-const NAV_JS = `<script>
-function toggleNav(btn) {
-  const items = document.getElementById('nav-items');
-  items.classList.toggle('collapsed');
-  btn.classList.toggle('open');
-}
-</script>`;
-
 // ── Helpers ──────────────────────────────────────────────────────────────────
 function platformLabel(platform) {
-  const map = { HTB: "HackTheBox", TryHackMe: "TryHackMe", VulnLab: "VulnLab", OFFSEC: "OffSec", Other: "Other" };
+  const map = { HTB: "Hack The Box", TryHackMe: "TryHackMe", VulnLab: "VulnLab", OFFSEC: "OffSec", Other: "Other" };
   return map[platform] || platform;
 }
 
@@ -167,9 +148,17 @@ function markdownToHtml(md) {
   return marked.parse(stripped);
 }
 
-function iconTag(iconUrl, cls, size) {
-  if (iconUrl) return `<img src="${iconUrl}" class="${cls}" alt="" width="${size}" height="${size}">`;
-  return `<div class="${cls}-placeholder"></div>`;
+// Copy favicon from repo root to dist, return filename or null
+function copyFavicon() {
+  for (const ext of ["ico", "png", "svg"]) {
+    const src = path.join(".", `favicon.${ext}`);
+    if (fs.existsSync(src)) {
+      fs.copyFileSync(src, path.join(OUT_DIR, `favicon.${ext}`));
+      console.log(`Copied favicon.${ext} to dist/`);
+      return `favicon.${ext}`;
+    }
+  }
+  return null;
 }
 
 // ── buildNav ─────────────────────────────────────────────────────────────────
@@ -179,12 +168,7 @@ function buildNav(pages, currentSlug) {
   const homeHref = isSubpage ? "../" : "./";
 
   let html = `<nav>\n<div class="nav-logo"><a href="${homeHref}">0xnrg<span class="tld">.se</span></a></div>\n`;
-
-  // Collapsible "Hack The Box" section
-  html += `<button class="nav-toggle open" onclick="toggleNav(this)">
-  <span>Hack The Box</span><i class="chevron">▾</i>
-</button>
-<div class="nav-items" id="nav-items">\n`;
+  html += `<div class="nav-section">Hack The Box</div>\n`;
 
   for (const item of pages) {
     const isActive = item.slug === currentSlug;
@@ -194,12 +178,12 @@ function buildNav(pages, currentSlug) {
     html += `<a href="${base}${item.slug}/" class="nav-link ${cls}">${item.name.toLowerCase()} ${lockIcon}</a>\n`;
   }
 
-  html += `</div>\n</nav>\n`;
+  html += `</nav>\n`;
   return html;
 }
 
 // ── buildPage ─────────────────────────────────────────────────────────────────
-function buildPage(page, nav, bodyHtml) {
+function buildPage(page, nav, bodyHtml, faviconFile) {
   const isLocked = page.status !== "Completed";
   const focusTags = (page.focus || []).map(f => `<span class="chip">${f}</span>`).join("");
   const osTags = page.os ? `<span class="chip">${page.os}</span>` : "";
@@ -209,22 +193,19 @@ function buildPage(page, nav, bodyHtml) {
     ? `<img src="${page.icon}" class="box-icon" alt="${page.name}">`
     : `<div class="icon-placeholder"></div>`;
 
-  let contentHtml;
-  if (isLocked) {
-    contentHtml = `
-<div class="lock-wrap">
-  <div class="lock-inner">${bodyHtml}</div>
-  <div class="lock-fade"></div>
-</div>
-<div class="lock-card">
+  // SECURITY: locked pages never include actual content in the HTML source
+  const contentHtml = isLocked
+    ? `<div class="lock-card">
   <div style="font-size:16px;color:var(--dim);margin-bottom:14px;">—</div>
   <h3>Writeup restricted</h3>
-  <p>This machine is currently active. The full writeup will be published automatically once the box retires, in accordance with HTB's NDA policy.</p>
+  <p>This machine is currently active. The full writeup will be published once the box retires, in accordance with HTB's NDA policy.</p>
   <div class="eta">Status — Active</div>
-</div>`;
-  } else {
-    contentHtml = bodyHtml;
-  }
+</div>`
+    : bodyHtml;
+
+  const faviconLink = faviconFile
+    ? `<link rel="icon" href="../${faviconFile}">`
+    : "";
 
   return `<!DOCTYPE html>
 <html lang="en">
@@ -232,6 +213,7 @@ function buildPage(page, nav, bodyHtml) {
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>${page.name} — 0xnrg.se</title>
+${faviconLink}
 <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@300;400;500&family=IBM+Plex+Sans:wght@300;400;500&display=swap" rel="stylesheet">
 ${HLJS_HEAD}
 <style>${CSS}</style>
@@ -252,20 +234,19 @@ ${nav}
 </main>
 </div>
 <script>hljs.highlightAll();</script>
-${NAV_JS}
 </body>
 </html>`;
 }
 
 // ── buildIndex ────────────────────────────────────────────────────────────────
-function buildIndex(pages, nav) {
+function buildIndex(pages, nav, faviconFile) {
   const rows = pages.map(p => {
     const isLocked = p.status !== "Completed";
     const lockIcon = isLocked ? `<span class="lock">⌀</span>` : "";
     const diff = p.difficulty ? `<span class="chip ${diffClass(p.difficulty)}">${p.difficulty}</span>` : "";
     const osChip = p.os ? `<span class="chip">${p.os}</span>` : "";
     const iconHtml = p.icon
-      ? `<img src="${p.icon}" alt="${p.name}" width="38" height="38" style="border-radius:50%;object-fit:cover;border:1px solid var(--border2);">`
+      ? `<img src="${p.icon}" alt="${p.name}" width="48" height="48" style="border-radius:50%;object-fit:cover;border:1px solid var(--border2);">`
       : `<div class="index-icon-placeholder"></div>`;
 
     return `<a href="${p.slug}/" class="index-row">
@@ -277,12 +258,17 @@ function buildIndex(pages, nav) {
 </a>`;
   }).join("\n");
 
+  const faviconLink = faviconFile
+    ? `<link rel="icon" href="./${faviconFile}">`
+    : "";
+
   return `<!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>0xnrg.se</title>
+${faviconLink}
 <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@300;400;500&family=IBM+Plex+Sans:wght@300;400;500&display=swap" rel="stylesheet">
 <style>${CSS}</style>
 </head>
@@ -290,8 +276,8 @@ function buildIndex(pages, nav) {
 <div class="shell">
 ${nav}
 <main>
-  <div class="page-platform">Writeups</div>
-  <h1>0xnrg</h1>
+  <div class="page-platform">writeups</div>
+  <h1>Hack The Box</h1>
   <div style="height:36px;"></div>
   <div style="padding-bottom:2px;border-bottom:1px solid var(--border);margin-bottom:0;">
     <div style="font-family:'IBM Plex Mono',monospace;font-size:10px;color:var(--dim);text-transform:uppercase;letter-spacing:2px;padding:10px 0;">All Labs</div>
@@ -299,7 +285,6 @@ ${nav}
   ${rows}
 </main>
 </div>
-${NAV_JS}
 </body>
 </html>`;
 }
@@ -341,23 +326,28 @@ async function main() {
 
   console.log(`Found ${pages.length} pages — fetching content & icons...`);
 
-  // Fetch content + icon for every page (locked pages need real content for the 15% preview)
   for (const page of pages) {
     const contentPageId = extractContentPageId(page);
+    const isLocked = page.status !== "Completed";
+
     try {
       console.log(`  [${page.status}] ${page.name} → ${contentPageId}`);
 
-      // Fetch page metadata (icon) and markdown content in parallel
-      const [pageMeta, mdBlocks] = await Promise.all([
-        notion.pages.retrieve({ page_id: contentPageId }),
-        n2m.pageToMarkdown(contentPageId)
-      ]);
-
-      page.icon = pageMeta.icon?.external?.url || pageMeta.icon?.file?.url || null;
-
-      const mdString = n2m.toMarkdownString(mdBlocks);
-      page.bodyHtml = markdownToHtml(mdString.parent || "");
-      if (!page.bodyHtml.trim()) page.bodyHtml = "<p>No content found on the linked Notion page.</p>";
+      if (isLocked) {
+        // Locked: only fetch icon — content is never written to HTML source
+        const pageMeta = await notion.pages.retrieve({ page_id: contentPageId });
+        page.icon = pageMeta.icon?.external?.url || pageMeta.icon?.file?.url || null;
+      } else {
+        // Unlocked: fetch icon + full content in parallel
+        const [pageMeta, mdBlocks] = await Promise.all([
+          notion.pages.retrieve({ page_id: contentPageId }),
+          n2m.pageToMarkdown(contentPageId)
+        ]);
+        page.icon = pageMeta.icon?.external?.url || pageMeta.icon?.file?.url || null;
+        const mdString = n2m.toMarkdownString(mdBlocks);
+        page.bodyHtml = markdownToHtml(mdString.parent || "");
+        if (!page.bodyHtml.trim()) page.bodyHtml = "<p>No content found on the linked Notion page.</p>";
+      }
 
     } catch (e) {
       console.warn(`  Could not fetch ${page.name}:`, e.message);
@@ -366,9 +356,12 @@ async function main() {
     }
   }
 
-  // Build nav + index (icons are now populated)
+  // Copy favicon if present
+  const faviconFile = copyFavicon();
+
+  // Build nav + index
   const indexNav = buildNav(pages, null);
-  const indexHtml = buildIndex(pages, indexNav);
+  const indexHtml = buildIndex(pages, indexNav, faviconFile);
   fs.writeFileSync(path.join(OUT_DIR, "index.html"), indexHtml);
   console.log("Built index.html");
 
@@ -378,7 +371,7 @@ async function main() {
     if (!fs.existsSync(pageDir)) fs.mkdirSync(pageDir, { recursive: true });
 
     const nav = buildNav(pages, page.slug);
-    const html = buildPage(page, nav, page.bodyHtml);
+    const html = buildPage(page, nav, page.bodyHtml, faviconFile);
     fs.writeFileSync(path.join(pageDir, "index.html"), html);
     console.log(`Built: ${page.slug}/`);
   }
