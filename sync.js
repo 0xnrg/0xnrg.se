@@ -239,7 +239,7 @@ ${nav}
   <div style="border:1px solid var(--border); border-radius:5px; padding:28px 32px; max-width:540px; background:var(--surface);">
     <div style="font-size:16px;color:var(--dim);margin-bottom:14px;">—</div>
     <h3 style="font-family:'IBM Plex Mono',monospace;font-size:12.5px;font-weight:500;color:var(--white);margin:0 0 10px;letter-spacing:.3px;text-transform:none;">Under construction</h3>
-    <p style="font-size:13px;color:var(--muted);margin:0;">Posts and write-ups are coming. Check back later.</p>
+    <p style="font-size:13px;color:var(--muted);margin:0;">Posts are coming. Check back later.</p>
   </div>
 </main>
 </div>
@@ -247,10 +247,30 @@ ${nav}
 </html>`;
 }
 
+const CERT_GOAL_ORDER = [
+  "HTB CWES",
+  "HTB CWEE",
+  "HTB CAPE",
+  "HTB CWPE",
+  "OffSec OSCP",
+  "OffSec OSWE",
+  "OffSec OSEP",
+  "OffSec OSED",
+  "OffSec OSCE3",
+];
+
 // ── buildAboutPage ────────────────────────────────────────────────────────────
 function buildAboutPage(nav, certs, bioHtml, faviconFile) {
   const achieved = certs.filter(c => c.status === "Achieved");
-  const goals    = certs.filter(c => c.status !== "Achieved");
+  const goals    = certs
+    .filter(c => c.status !== "Achieved")
+    .sort((a, b) => {
+      const ai = CERT_GOAL_ORDER.indexOf(a.name);
+      const bi = CERT_GOAL_ORDER.indexOf(b.name);
+      const av = ai === -1 ? 999 : ai;
+      const bv = bi === -1 ? 999 : bi;
+      return av - bv;
+    });
 
   const achievedRows = achieved.map(c => {
     const year = c.dateAchieved ? c.dateAchieved.slice(0, 4) : "—";
