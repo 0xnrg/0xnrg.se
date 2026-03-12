@@ -129,6 +129,32 @@ em { color:var(--muted); font-style:italic; }
 /* ── SCROLLBAR ── */
 ::-webkit-scrollbar { width:3px; }
 ::-webkit-scrollbar-thumb { background:var(--border2); border-radius:2px; }
+
+/* ── MOBILE ── */
+.mobile-topbar { display:none; }
+.hamburger { background:none; border:none; cursor:pointer; padding:6px; display:flex; flex-direction:column; justify-content:center; gap:5px; }
+.hamburger span { display:block; width:20px; height:2px; background:var(--muted); border-radius:1px; }
+.nav-overlay { display:none; position:fixed; inset:0; z-index:99; background:rgba(0,0,0,.55); }
+
+@media (max-width:768px) {
+  .shell { grid-template-columns:1fr; }
+  .mobile-topbar { display:flex; align-items:center; justify-content:space-between; padding:14px 20px; background:var(--bg); border-bottom:1px solid var(--border); position:sticky; top:0; z-index:100; }
+  .mobile-logo { font-family:'IBM Plex Mono',monospace; font-size:15px; font-weight:500; color:var(--white); text-decoration:none; letter-spacing:.5px; }
+  .mobile-logo .tld { color:var(--muted); font-weight:300; }
+  nav { position:fixed; top:0; left:-270px; width:260px; height:100%; z-index:101; transition:left .25s ease; border-right:1px solid var(--border); background:var(--bg); overflow-y:auto; }
+  nav.nav-open { left:0; }
+  .nav-overlay.nav-open { display:block; }
+  main { padding:28px 20px 52px; }
+  h1 { font-size:22px; }
+  pre { padding:14px 16px; font-size:11.5px; overflow-x:auto; }
+  .lock-card { padding:22px 20px; }
+  table { font-size:11.5px; }
+  th, td { padding:7px 8px; }
+  .about-bio { max-width:100%; }
+  .cert-table-wrap { overflow-x:auto; }
+  .index-name { font-size:13px; }
+  .page-header { gap:14px; }
+}
 `;
 
 const HLJS_HEAD = `
@@ -139,7 +165,31 @@ const HLJS_HEAD = `
 <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/languages/xml.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/languages/javascript.min.js"></script>`;
 
+const MOBILE_JS = `<script>
+(function(){
+  var btn=document.getElementById('mob-hamburger');
+  var nav=document.querySelector('nav');
+  var overlay=document.getElementById('nav-overlay');
+  if(!btn)return;
+  function openNav(){nav.classList.add('nav-open');overlay.classList.add('nav-open');}
+  function closeNav(){nav.classList.remove('nav-open');overlay.classList.remove('nav-open');}
+  btn.addEventListener('click',function(){nav.classList.contains('nav-open')?closeNav():openNav();});
+  overlay.addEventListener('click',closeNav);
+})();
+<\/script>`;
+
 // ── Helpers ──────────────────────────────────────────────────────────────────
+function buildMobileTopbar(depth) {
+  const prefix = pathPrefix(depth);
+  return `<div class="mobile-topbar">
+  <a href="${prefix}" class="mobile-logo">0xnrg<span class="tld">.se</span></a>
+  <button id="mob-hamburger" class="hamburger" aria-label="Toggle navigation">
+    <span></span><span></span><span></span>
+  </button>
+</div>
+<div id="nav-overlay" class="nav-overlay"></div>`;
+}
+
 function platformLabel(platform) {
   const map = { HTB: "Hack The Box", TryHackMe: "TryHackMe", VulnLab: "VulnLab", OFFSEC: "OffSec", Other: "Other" };
   return map[platform] || platform;
@@ -236,6 +286,7 @@ ${faviconTag(faviconFile, 1)}
 <style>${CSS}</style>
 </head>
 <body>
+${buildMobileTopbar(1)}
 <div class="shell">
 ${nav}
 <main>
@@ -249,6 +300,7 @@ ${nav}
   </div>
 </main>
 </div>
+${MOBILE_JS}
 </body>
 </html>`;
 }
@@ -308,6 +360,7 @@ ${faviconTag(faviconFile, 0)}
 <style>${CSS}</style>
 </head>
 <body>
+${buildMobileTopbar(0)}
 <div class="shell">
 ${nav}
 <main>
@@ -346,6 +399,7 @@ ${nav}
 
 </main>
 </div>
+${MOBILE_JS}
 </body>
 </html>`;
 }
@@ -386,6 +440,7 @@ ${HLJS_HEAD}
 <style>${CSS}</style>
 </head>
 <body>
+${buildMobileTopbar(2)}
 <div class="shell">
 ${nav}
 <main>
@@ -401,6 +456,7 @@ ${nav}
 </main>
 </div>
 <script>hljs.highlightAll();</script>
+${MOBILE_JS}
 </body>
 </html>`;
 }
@@ -418,6 +474,7 @@ ${faviconTag(faviconFile, 1)}
 <style>${CSS}</style>
 </head>
 <body>
+${buildMobileTopbar(1)}
 <div class="shell">
 ${nav}
 <main>
@@ -430,6 +487,7 @@ ${nav}
   <p style="margin-top:32px;font-family:'IBM Plex Mono',monospace;font-size:12px;color:var(--dim);">No writeups published yet.</p>
 </main>
 </div>
+${MOBILE_JS}
 </body>
 </html>`;
 }
@@ -471,6 +529,7 @@ ${faviconTag(faviconFile, 1)}
 <style>${CSS}</style>
 </head>
 <body>
+${buildMobileTopbar(1)}
 <div class="shell">
 ${nav}
 <main>
@@ -492,6 +551,7 @@ function showTab(t, btn) {
   btn.classList.add('active');
 }
 </script>
+${MOBILE_JS}
 </body>
 </html>`;
 }
