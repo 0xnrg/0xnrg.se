@@ -234,7 +234,7 @@ ${faviconTag(faviconFile, 1)}
 ${nav}
 <main>
   <div class="page-platform">blog</div>
-  <h1>Blog</h1>
+  <h1>Posts</h1>
   <div style="height:36px;"></div>
   <div style="border:1px solid var(--border); border-radius:5px; padding:28px 32px; max-width:540px; background:var(--surface);">
     <div style="font-size:16px;color:var(--dim);margin-bottom:14px;">—</div>
