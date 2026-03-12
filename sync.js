@@ -120,6 +120,12 @@ em { color:var(--muted); font-style:italic; }
 .cert-inprogress { color:#e5c07b; font-family:'IBM Plex Mono',monospace; font-size:10px; letter-spacing:.5px; }
 .cert-goal { color:var(--dim); font-family:'IBM Plex Mono',monospace; font-size:10px; letter-spacing:.5px; }
 
+/* ── TABS ── */
+.tab-bar { display:flex; gap:0; margin-bottom:0; border-bottom:1px solid var(--border); margin-top:36px; }
+.tab { background:none; border:none; padding:10px 0; margin-right:28px; font-family:'IBM Plex Mono',monospace; font-size:10px; color:var(--dim); text-transform:uppercase; letter-spacing:2px; cursor:pointer; border-bottom:2px solid transparent; margin-bottom:-1px; transition:color .15s; }
+.tab:hover { color:var(--muted); }
+.tab.active { color:var(--white); border-bottom-color:var(--accent); }
+
 /* ── SCROLLBAR ── */
 ::-webkit-scrollbar { width:3px; }
 ::-webkit-scrollbar-thumb { background:var(--border2); border-radius:2px; }
@@ -430,8 +436,8 @@ ${nav}
 
 // ── buildIndex ────────────────────────────────────────────────────────────────
 // Generates dist/htb/index.html (depth=1)
-function buildIndex(pages, nav, faviconFile) {
-  const rows = pages.map(p => {
+function buildIndexRows(pages) {
+  return pages.map(p => {
     const isLocked = p.status !== "Completed";
     const lockIcon = isLocked ? `<span class="lock">⌀</span>` : "";
     const diff = p.difficulty ? `<span class="chip ${diffClass(p.difficulty)}">${p.difficulty}</span>` : "";
@@ -448,6 +454,11 @@ function buildIndex(pages, nav, faviconFile) {
   </div>
 </a>`;
   }).join("\n");
+}
+
+function buildIndex(labs, proLabs, nav, faviconFile) {
+  const labRows    = buildIndexRows(labs);
+  const proLabRows = buildIndexRows(proLabs);
 
   return `<!DOCTYPE html>
 <html lang="en">
@@ -465,13 +476,22 @@ ${nav}
 <main>
   <div class="page-platform">writeups</div>
   <h1>Hack The Box</h1>
-  <div style="height:36px;"></div>
-  <div style="padding-bottom:2px;border-bottom:1px solid var(--border);margin-bottom:0;">
-    <div style="font-family:'IBM Plex Mono',monospace;font-size:10px;color:var(--dim);text-transform:uppercase;letter-spacing:2px;padding:10px 0;">All Labs</div>
+  <div class="tab-bar">
+    <button class="tab active" onclick="showTab('labs', this)">Labs</button>
+    <button class="tab" onclick="showTab('prolabs', this)">Pro Labs</button>
   </div>
-  ${rows}
+  <div id="tab-labs">${labRows}</div>
+  <div id="tab-prolabs" style="display:none">${proLabRows}</div>
 </main>
 </div>
+<script>
+function showTab(t, btn) {
+  document.getElementById('tab-labs').style.display    = t === 'labs'    ? 'block' : 'none';
+  document.getElementById('tab-prolabs').style.display = t === 'prolabs' ? 'block' : 'none';
+  document.querySelectorAll('.tab').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+}
+</script>
 </body>
 </html>`;
 }
@@ -528,58 +548,65 @@ async function main() {
   const [bioHtml, certs] = await Promise.all([fetchAbout(), fetchCerts()]);
   console.log(`Found ${certs.length} certifications`);
 
-  // Query HTB Labs, newest first (created_time descending)
-  const response = await notion.databases.query({
-    database_id: DATABASE_ID,
-    filter: {
-      and: [
-        { property: "Platform", select: { equals: "HTB" } },
-        { property: "Category", select: { equals: "Lab" } }
-      ]
-    },
-    sorts: [{ timestamp: "created_time", direction: "descending" }]
-  });
+  // Helper: query + enrich pages for a given category
+  async function fetchHtbCategory(category) {
+    const res = await notion.databases.query({
+      database_id: DATABASE_ID,
+      filter: {
+        and: [
+          { property: "Platform", select: { equals: "HTB" } },
+          { property: "Category", select: { equals: category } }
+        ]
+      },
+      sorts: [{ timestamp: "created_time", direction: "descending" }]
+    });
 
-  const pages = [];
+    const items = res.results.map(result => {
+      const props = result.properties;
+      return {
+        id:           result.id,
+        name:         props.Name?.title?.[0]?.plain_text || "Untitled",
+        status:       props.Status?.select?.name || "",
+        platform:     props.Platform?.select?.name || "",
+        difficulty:   props.Difficulty?.select?.name || "",
+        os:           props.OS?.select?.name || "",
+        category:     props.Category?.select?.name || "",
+        focus:        props.Focus?.multi_select?.map(f => f.name) || [],
+        notionPageUrl: props["Notion Page"]?.url || null,
+        slug:         slugify(props.Name?.title?.[0]?.plain_text || "untitled"),
+        icon:         null,
+        bodyHtml:     ""
+      };
+    });
 
-  for (const result of response.results) {
-    const props = result.properties;
-    const name = props.Name?.title?.[0]?.plain_text || "Untitled";
-    const status = props.Status?.select?.name || "";
-    const platform = props.Platform?.select?.name || "";
-    const difficulty = props.Difficulty?.select?.name || "";
-    const os = props.OS?.select?.name || "";
-    const category = props.Category?.select?.name || "";
-    const focus = props.Focus?.multi_select?.map(f => f.name) || [];
-    const notionPageUrl = props["Notion Page"]?.url || null;
-    const slug = slugify(name);
+    console.log(`Found ${items.length} ${category} pages — fetching content & icons...`);
 
-    pages.push({ id: result.id, name, status, platform, difficulty, os, category, focus, notionPageUrl, slug, icon: null, bodyHtml: "" });
-  }
-
-  console.log(`Found ${pages.length} pages — fetching content & icons...`);
-
-  for (const page of pages) {
-    const contentPageId = extractContentPageId(page);
-
-    try {
-      console.log(`  [${page.status}] ${page.name} → ${contentPageId}`);
-
-      const [pageMeta, mdBlocks] = await Promise.all([
-        notion.pages.retrieve({ page_id: contentPageId }),
-        n2m.pageToMarkdown(contentPageId)
-      ]);
-      page.icon = pageMeta.icon?.external?.url || pageMeta.icon?.file?.url || null;
-      const mdString = n2m.toMarkdownString(mdBlocks);
-      page.bodyHtml = markdownToHtml(mdString.parent || "");
-      if (!page.bodyHtml.trim()) page.bodyHtml = "<p>No content found on the linked Notion page.</p>";
-
-    } catch (e) {
-      console.warn(`  Could not fetch ${page.name}:`, e.message);
-      page.icon = null;
-      page.bodyHtml = "<p>Content unavailable.</p>";
+    for (const page of items) {
+      const contentPageId = extractContentPageId(page);
+      try {
+        console.log(`  [${page.status}] ${page.name} → ${contentPageId}`);
+        const [pageMeta, mdBlocks] = await Promise.all([
+          notion.pages.retrieve({ page_id: contentPageId }),
+          n2m.pageToMarkdown(contentPageId)
+        ]);
+        page.icon = pageMeta.icon?.external?.url || pageMeta.icon?.file?.url || null;
+        const mdString = n2m.toMarkdownString(mdBlocks);
+        page.bodyHtml = markdownToHtml(mdString.parent || "");
+        if (!page.bodyHtml.trim()) page.bodyHtml = "<p>No content found on the linked Notion page.</p>";
+      } catch (e) {
+        console.warn(`  Could not fetch ${page.name}:`, e.message);
+        page.icon = null;
+        page.bodyHtml = "<p>Content unavailable.</p>";
+      }
     }
+
+    return items;
   }
+
+  const [pages, proLabPages] = await Promise.all([
+    fetchHtbCategory("Lab"),
+    fetchHtbCategory("Pro Lab")
+  ]);
 
   // Copy favicon if present
   const faviconFile = copyFavicon();
@@ -602,12 +629,12 @@ async function main() {
   const htbDir = path.join(OUT_DIR, "htb");
   if (!fs.existsSync(htbDir)) fs.mkdirSync(htbDir, { recursive: true });
   const htbNav  = buildNav(1, "htb");
-  const htbHtml = buildIndex(pages, htbNav, faviconFile);
+  const htbHtml = buildIndex(pages, proLabPages, htbNav, faviconFile);
   fs.writeFileSync(path.join(htbDir, "index.html"), htbHtml);
   console.log("Built htb/index.html");
 
-  // ── Individual writeup pages at dist/htb/{slug}/index.html (depth=2) ──
-  for (const page of pages) {
+  // ── Individual writeup pages (Labs + Pro Labs) at dist/htb/{slug}/ (depth=2) ──
+  for (const page of [...pages, ...proLabPages]) {
     const pageDir = path.join(OUT_DIR, "htb", page.slug);
     if (!fs.existsSync(pageDir)) fs.mkdirSync(pageDir, { recursive: true });
 
