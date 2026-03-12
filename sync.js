@@ -35,8 +35,9 @@ nav { border-right:1px solid var(--border); padding:40px 0; position:sticky; top
 .nav-logo { padding:0 28px 36px; border-bottom:1px solid var(--border); margin-bottom:24px; }
 .nav-logo a { font-family:'IBM Plex Mono',monospace; font-size:15px; font-weight:500; color:var(--white); text-decoration:none; letter-spacing:.5px; }
 .nav-logo .tld { color:var(--muted); font-weight:300; }
-.nav-htb { display:block; padding:10px 28px; color:var(--dim); font-family:'IBM Plex Mono',monospace; font-size:10px; text-transform:uppercase; letter-spacing:2px; text-decoration:none; transition:color .15s; }
-.nav-htb:hover { color:var(--muted); opacity:1; }
+.nav-platform { display:block; padding:9px 28px; color:var(--dim); font-family:'IBM Plex Mono',monospace; font-size:10px; text-transform:uppercase; letter-spacing:2px; text-decoration:none; transition:color .15s; }
+.nav-platform:hover { color:var(--muted); opacity:1; }
+.nav-platform.active { color:var(--white); border-left:2px solid var(--accent); padding-left:26px; }
 
 /* ── MAIN ── */
 main { padding:52px 68px; max-width:900px; }
@@ -160,13 +161,26 @@ function copyFavicon() {
   return null;
 }
 
-// ── buildNav ─────────────────────────────────────────────────────────────────
-function buildNav(pages, currentSlug) {
-  const isSubpage = currentSlug !== null;
-  const homeHref = isSubpage ? "../" : "./";
+const PLATFORMS = [
+  { key: "htb",        label: "Hack The Box", slug: ""          },
+  { key: "vulnlab",    label: "VulnLab",       slug: "vulnlab"   },
+  { key: "offsec",     label: "OffSec",        slug: "offsec"    },
+  { key: "tryhackme",  label: "TryHackMe",     slug: "tryhackme" },
+];
 
-  let html = `<nav>\n<div class="nav-logo"><a href="${homeHref}">0xnrg<span class="tld">.se</span></a></div>\n`;
-  html += `<a href="${homeHref}" class="nav-htb">Hack The Box</a>\n`;
+// ── buildNav ─────────────────────────────────────────────────────────────────
+function buildNav(pages, currentSlug, currentPlatform) {
+  const isSubpage = currentSlug !== null || (currentPlatform && currentPlatform !== "htb");
+  const root = isSubpage ? "../" : "./";
+
+  let html = `<nav>\n<div class="nav-logo"><a href="${root}">0xnrg<span class="tld">.se</span></a></div>\n`;
+
+  for (const p of PLATFORMS) {
+    const href = p.slug === "" ? root : `${root}${p.slug}/`;
+    const isActive = p.key === (currentPlatform || "htb");
+    html += `<a href="${href}" class="nav-platform${isActive ? " active" : ""}">${p.label}</a>\n`;
+  }
+
   html += `</nav>\n`;
   return html;
 }
@@ -226,6 +240,36 @@ ${nav}
 </main>
 </div>
 <script>hljs.highlightAll();</script>
+</body>
+</html>`;
+}
+
+// ── buildPlatformPage ─────────────────────────────────────────────────────────
+function buildPlatformPage(label, nav, faviconFile) {
+  const faviconLink = faviconFile ? `<link rel="icon" href="../${faviconFile}">` : "";
+  return `<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>${label} — 0xnrg.se</title>
+${faviconLink}
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@300;400;500&family=IBM+Plex+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+<style>${CSS}</style>
+</head>
+<body>
+<div class="shell">
+${nav}
+<main>
+  <div class="page-platform">writeups</div>
+  <h1>${label}</h1>
+  <div style="height:36px;"></div>
+  <div style="padding-bottom:2px;border-bottom:1px solid var(--border);margin-bottom:0;">
+    <div style="font-family:'IBM Plex Mono',monospace;font-size:10px;color:var(--dim);text-transform:uppercase;letter-spacing:2px;padding:10px 0;">All Labs</div>
+  </div>
+  <p style="margin-top:32px;font-family:'IBM Plex Mono',monospace;font-size:12px;color:var(--dim);">No writeups published yet.</p>
+</main>
+</div>
 </body>
 </html>`;
 }
@@ -345,8 +389,8 @@ async function main() {
   // Copy favicon if present
   const faviconFile = copyFavicon();
 
-  // Build nav + index
-  const indexNav = buildNav(pages, null);
+  // Build nav + HTB index
+  const indexNav = buildNav(pages, null, "htb");
   const indexHtml = buildIndex(pages, indexNav, faviconFile);
   fs.writeFileSync(path.join(OUT_DIR, "index.html"), indexHtml);
   console.log("Built index.html");
@@ -356,10 +400,21 @@ async function main() {
     const pageDir = path.join(OUT_DIR, page.slug);
     if (!fs.existsSync(pageDir)) fs.mkdirSync(pageDir, { recursive: true });
 
-    const nav = buildNav(pages, page.slug);
+    const nav = buildNav(pages, page.slug, "htb");
     const html = buildPage(page, nav, page.bodyHtml, faviconFile);
     fs.writeFileSync(path.join(pageDir, "index.html"), html);
     console.log(`Built: ${page.slug}/`);
+  }
+
+  // Build placeholder pages for other platforms
+  for (const p of PLATFORMS) {
+    if (p.slug === "") continue; // HTB is the root index
+    const dir = path.join(OUT_DIR, p.slug);
+    if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
+    const nav = buildNav(pages, null, p.key);
+    const html = buildPlatformPage(p.label, nav, faviconFile);
+    fs.writeFileSync(path.join(dir, "index.html"), html);
+    console.log(`Built: ${p.slug}/`);
   }
 
   // CNAME + .nojekyll
