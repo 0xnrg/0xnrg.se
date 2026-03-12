@@ -429,24 +429,30 @@ ${nav}
 // ── fetchCerts ────────────────────────────────────────────────────────────────
 async function fetchCerts() {
   console.log("Fetching certifications from Notion...");
-  const response = await notion.databases.query({
-    database_id: CERT_DB_ID,
-    sorts: [
-      { property: "Status", direction: "ascending" },
-      { property: "Name",   direction: "ascending"  }
-    ]
-  });
+  try {
+    const response = await notion.databases.query({
+      database_id: CERT_DB_ID,
+      sorts: [
+        { property: "Status", direction: "ascending" },
+        { property: "Name",   direction: "ascending"  }
+      ]
+    });
 
-  return response.results.map(r => {
-    const props = r.properties;
-    return {
-      name:         props.Name?.title?.[0]?.plain_text || "",
-      provider:     props.Provider?.select?.name || "",
-      status:       props.Status?.select?.name || "",
-      dateAchieved: props["Date Achieved"]?.date?.start || null,
-      notes:        props.Notes?.rich_text?.[0]?.plain_text || ""
-    };
-  });
+    return response.results.map(r => {
+      const props = r.properties;
+      return {
+        name:         props.Name?.title?.[0]?.plain_text || "",
+        provider:     props.Provider?.select?.name || "",
+        status:       props.Status?.select?.name || "",
+        dateAchieved: props["Date Achieved"]?.date?.start || null,
+        notes:        props.Notes?.rich_text?.[0]?.plain_text || ""
+      };
+    });
+  } catch (e) {
+    console.warn("Could not fetch certifications:", e.message);
+    console.warn("Make sure the cert database is shared with your Notion integration.");
+    return [];
+  }
 }
 
 // ── main ──────────────────────────────────────────────────────────────────────
