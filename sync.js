@@ -80,6 +80,8 @@ li { padding:3px 0; }
 li code { font-size:11.5px; }
 a { color:var(--accent); text-decoration:none; opacity:.85; }
 a:hover { opacity:1; }
+img { max-width:100%; height:auto; display:block; border-radius:4px; margin:16px 0; }
+p { overflow-wrap:break-word; word-break:break-word; }
 
 /* ── TABLES ── */
 table { border-collapse:collapse; width:100%; margin:16px 0; font-size:12.5px; }
@@ -154,6 +156,11 @@ em { color:var(--muted); font-style:italic; }
   .cert-table-wrap { overflow-x:auto; }
   .index-name { font-size:13px; }
   .page-header { gap:14px; }
+  main { overflow-x:hidden; }
+  pre { white-space:pre; overflow-x:auto; max-width:100%; }
+  code { word-break:break-all; }
+  pre code { word-break:normal; }
+  img { max-width:100%; }
 }
 `;
 
