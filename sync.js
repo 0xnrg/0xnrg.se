@@ -211,9 +211,40 @@ function buildNav(depth, activePlatform) {
   }
 
   html += `<div class="nav-sep"></div>\n`;
+  html += `<a href="${prefix}blog/" class="nav-about${activePlatform === "blog" ? " active" : ""}">Blog</a>\n`;
   html += `<a href="${prefix}" class="nav-about${activePlatform === "about" ? " active" : ""}">About</a>\n`;
   html += `</nav>\n`;
   return html;
+}
+
+// ── buildBlogPage ─────────────────────────────────────────────────────────────
+function buildBlogPage(nav, faviconFile) {
+  return `<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Blog — 0xnrg.se</title>
+${faviconTag(faviconFile, 1)}
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@300;400;500&family=IBM+Plex+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+<style>${CSS}</style>
+</head>
+<body>
+<div class="shell">
+${nav}
+<main>
+  <div class="page-platform">blog</div>
+  <h1>Blog</h1>
+  <div style="height:36px;"></div>
+  <div style="border:1px solid var(--border); border-radius:5px; padding:28px 32px; max-width:540px; background:var(--surface);">
+    <div style="font-size:16px;color:var(--dim);margin-bottom:14px;">—</div>
+    <h3 style="font-family:'IBM Plex Mono',monospace;font-size:12.5px;font-weight:500;color:var(--white);margin:0 0 10px;letter-spacing:.3px;text-transform:none;">Under construction</h3>
+    <p style="font-size:13px;color:var(--muted);margin:0;">Posts and write-ups are coming. Check back later.</p>
+  </div>
+</main>
+</div>
+</body>
+</html>`;
 }
 
 // ── buildAboutPage ────────────────────────────────────────────────────────────
@@ -538,6 +569,14 @@ async function main() {
   const aboutHtml = buildAboutPage(aboutNav, certs, bioHtml, faviconFile);
   fs.writeFileSync(path.join(OUT_DIR, "index.html"), aboutHtml);
   console.log("Built index.html (About)");
+
+  // ── Blog placeholder at dist/blog/index.html (depth=1) ──
+  const blogDir = path.join(OUT_DIR, "blog");
+  if (!fs.existsSync(blogDir)) fs.mkdirSync(blogDir, { recursive: true });
+  const blogNav  = buildNav(1, "blog");
+  const blogHtml = buildBlogPage(blogNav, faviconFile);
+  fs.writeFileSync(path.join(blogDir, "index.html"), blogHtml);
+  console.log("Built blog/");
 
   // ── HTB index at dist/htb/index.html (depth=1) ──
   const htbDir = path.join(OUT_DIR, "htb");
