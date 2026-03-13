@@ -12,6 +12,7 @@ marked.setOptions({ gfm: true, breaks: false });
 const DATABASE_ID  = process.env.NOTION_DATABASE_ID;
 const CERT_DB_ID   = "1a08e775abfd4d9188dad53470aad0b4";
 const ABOUT_PAGE_ID = "32183ed0-ddc8-81a2-9d30-cc6d8a87863c";
+const BLOG_DB_ID   = "2e269c1c-9c88-4dc7-8cc7-2e20e17fec25";
 const OUT_DIR = "./dist";
 
 // ── CSS ──────────────────────────────────────────────────────────────────────
@@ -127,6 +128,17 @@ em { color:var(--muted); font-style:italic; }
 .tab { background:none; border:none; padding:10px 0; margin-right:28px; font-family:'IBM Plex Mono',monospace; font-size:10px; color:var(--dim); text-transform:uppercase; letter-spacing:2px; cursor:pointer; border-bottom:2px solid transparent; margin-bottom:-1px; transition:color .15s; }
 .tab:hover { color:var(--muted); }
 .tab.active { color:var(--white); border-bottom-color:var(--accent); }
+
+/* ── BLOG INDEX ── */
+.blog-row { display:flex; flex-direction:column; padding:24px 0; border-top:1px solid var(--border); text-decoration:none; }
+.blog-row:hover .blog-title { color:var(--white); }
+.blog-title { font-family:'IBM Plex Mono',monospace; font-size:15px; color:var(--text); transition:color .15s; margin-bottom:8px; }
+.blog-date { font-family:'IBM Plex Mono',monospace; font-size:10.5px; color:var(--dim); margin-bottom:10px; }
+.blog-excerpt { font-size:13px; color:var(--muted); line-height:1.65; }
+.blog-tags { display:flex; gap:6px; margin-top:10px; flex-wrap:wrap; }
+/* ── BLOG POST ── */
+.post-meta { display:flex; gap:12px; align-items:center; flex-wrap:wrap; margin-bottom:44px; padding-bottom:36px; border-bottom:1px solid var(--border); }
+.post-date { font-family:'IBM Plex Mono',monospace; font-size:10.5px; color:var(--dim); }
 
 /* ── SCROLLBAR ── */
 ::-webkit-scrollbar { width:3px; }
@@ -280,8 +292,22 @@ function buildNav(depth, activePlatform) {
   return html;
 }
 
-// ── buildBlogPage ─────────────────────────────────────────────────────────────
-function buildBlogPage(nav, faviconFile) {
+// ── buildBlogIndex ────────────────────────────────────────────────────────────
+function buildBlogIndex(posts, nav, faviconFile) {
+  const rows = posts.length === 0
+    ? `<p style="margin-top:32px;font-family:'IBM Plex Mono',monospace;font-size:12px;color:var(--dim);">No posts published yet.</p>`
+    : posts.map(p => {
+        const dateStr = p.date ? new Date(p.date).toLocaleDateString("sv-SE") : "";
+        const tags = (p.tags || []).map(t => `<span class="chip">${t}</span>`).join("");
+        const excerpt = p.excerpt ? `<div class="blog-excerpt">${p.excerpt}</div>` : "";
+        return `<a href="${p.slug}/" class="blog-row">
+  <div class="blog-date">${dateStr}</div>
+  <div class="blog-title">${p.name}</div>
+  ${excerpt}
+  <div class="blog-tags">${tags}</div>
+</a>`;
+      }).join("\n");
+
   return `<!DOCTYPE html>
 <html lang="en">
 <head>
@@ -299,14 +325,48 @@ ${nav}
 <main>
   <div class="page-platform">blog</div>
   <h1>Posts</h1>
-  <div style="height:36px;"></div>
-  <div style="border:1px solid var(--border); border-radius:5px; padding:28px 32px; max-width:540px; background:var(--surface);">
-    <div style="font-size:16px;color:var(--dim);margin-bottom:14px;">—</div>
-    <h3 style="font-family:'IBM Plex Mono',monospace;font-size:12.5px;font-weight:500;color:var(--white);margin:0 0 10px;letter-spacing:.3px;text-transform:none;">Under construction</h3>
-    <p style="font-size:13px;color:var(--muted);margin:0;">Posts are coming. Check back later.</p>
+  <div style="padding-bottom:2px;border-bottom:1px solid var(--border);margin-bottom:0;margin-top:36px;">
+    <div style="font-family:'IBM Plex Mono',monospace;font-size:10px;color:var(--dim);text-transform:uppercase;letter-spacing:2px;padding:10px 0;">All Posts</div>
   </div>
+  ${rows}
 </main>
 </div>
+${MOBILE_JS}
+</body>
+</html>`;
+}
+
+// ── buildBlogPostPage ─────────────────────────────────────────────────────────
+function buildBlogPostPage(post, nav, faviconFile) {
+  const dateStr = post.date ? new Date(post.date).toLocaleDateString("sv-SE") : "";
+  const tags = (post.tags || []).map(t => `<span class="chip">${t}</span>`).join("");
+
+  return `<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>${post.name} — 0xnrg.se</title>
+${faviconTag(faviconFile, 2)}
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@300;400;500&family=IBM+Plex+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+${HLJS_HEAD}
+<style>${CSS}</style>
+</head>
+<body>
+${buildMobileTopbar(2)}
+<div class="shell">
+${nav}
+<main>
+  <div class="page-platform">blog</div>
+  <h1>${post.name}</h1>
+  <div class="post-meta">
+    <span class="post-date">${dateStr}</span>
+    ${tags}
+  </div>
+  ${post.bodyHtml}
+</main>
+</div>
+<script>hljs.highlightAll();</script>
 ${MOBILE_JS}
 </body>
 </html>`;
@@ -641,6 +701,52 @@ async function fetchCerts() {
   }
 }
 
+// ── fetchBlogPosts ────────────────────────────────────────────────────────────
+async function fetchBlogPosts() {
+  console.log("Fetching blog posts from Notion...");
+  try {
+    const res = await notion.databases.query({
+      database_id: BLOG_DB_ID,
+      filter: { property: "Status", select: { equals: "Published" } },
+      sorts: [{ property: "Date", direction: "descending" }]
+    });
+
+    const posts = res.results.map(result => {
+      const props = result.properties;
+      const name = props.Name?.title?.[0]?.plain_text || "Untitled";
+      return {
+        id:      result.id,
+        name,
+        date:    props.Date?.date?.start || null,
+        tags:    props.Tags?.multi_select?.map(t => t.name) || [],
+        excerpt: props.Excerpt?.rich_text?.[0]?.plain_text || "",
+        slug:    slugify(name),
+        bodyHtml: ""
+      };
+    });
+
+    console.log(`Found ${posts.length} published blog posts — fetching content...`);
+
+    for (const post of posts) {
+      try {
+        console.log(`  ${post.name}`);
+        const mdBlocks = await n2m.pageToMarkdown(post.id);
+        const mdString = n2m.toMarkdownString(mdBlocks);
+        post.bodyHtml = markdownToHtml(mdString.parent || "");
+        if (!post.bodyHtml.trim()) post.bodyHtml = "<p>No content yet.</p>";
+      } catch (e) {
+        console.warn(`  Could not fetch ${post.name}:`, e.message);
+        post.bodyHtml = "<p>Content unavailable.</p>";
+      }
+    }
+
+    return posts;
+  } catch (e) {
+    console.warn("Could not fetch blog posts:", e.message);
+    return [];
+  }
+}
+
 // ── main ──────────────────────────────────────────────────────────────────────
 async function main() {
   console.log("Fetching Notion database...");
@@ -713,10 +819,11 @@ async function main() {
     return items;
   }
 
-  const [pages, proLabPages, thmRooms] = await Promise.all([
+  const [pages, proLabPages, thmRooms, blogPosts] = await Promise.all([
     fetchItems("HTB", "Lab"),
     fetchItems("HTB", "Pro Lab"),
-    fetchItems("TryHackMe", null)
+    fetchItems("TryHackMe", null),
+    fetchBlogPosts()
   ]);
 
   // Copy favicon if present
@@ -728,13 +835,23 @@ async function main() {
   fs.writeFileSync(path.join(OUT_DIR, "index.html"), aboutHtml);
   console.log("Built index.html (About)");
 
-  // ── Blog placeholder at dist/blog/index.html (depth=1) ──
+  // ── Blog index at dist/blog/index.html (depth=1) ──
   const blogDir = path.join(OUT_DIR, "blog");
   if (!fs.existsSync(blogDir)) fs.mkdirSync(blogDir, { recursive: true });
   const blogNav  = buildNav(1, "blog");
-  const blogHtml = buildBlogPage(blogNav, faviconFile);
+  const blogHtml = buildBlogIndex(blogPosts, blogNav, faviconFile);
   fs.writeFileSync(path.join(blogDir, "index.html"), blogHtml);
-  console.log("Built blog/");
+  console.log(`Built blog/ (${blogPosts.length} posts)`);
+
+  // ── Individual blog post pages at dist/blog/{slug}/ (depth=2) ──
+  for (const post of blogPosts) {
+    const postDir = path.join(OUT_DIR, "blog", post.slug);
+    if (!fs.existsSync(postDir)) fs.mkdirSync(postDir, { recursive: true });
+    const nav  = buildNav(2, "blog");
+    const html = buildBlogPostPage(post, nav, faviconFile);
+    fs.writeFileSync(path.join(postDir, "index.html"), html);
+    console.log(`Built: blog/${post.slug}/`);
+  }
 
   // ── HTB index at dist/htb/index.html (depth=1) ──
   const htbDir = path.join(OUT_DIR, "htb");
