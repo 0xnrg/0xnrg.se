@@ -300,11 +300,17 @@ function buildBlogIndex(posts, nav, faviconFile) {
         const dateStr = p.date ? new Date(p.date).toLocaleDateString("sv-SE") : "";
         const tags = (p.tags || []).map(t => `<span class="chip">${t}</span>`).join("");
         const excerpt = p.excerpt ? `<div class="blog-excerpt">${p.excerpt}</div>` : "";
-        return `<a href="${p.slug}/" class="blog-row">
-  <div class="blog-date">${dateStr}</div>
-  <div class="blog-title">${p.name}</div>
-  ${excerpt}
-  <div class="blog-tags">${tags}</div>
+        const iconHtml = p.icon
+          ? `<img src="${p.icon}" alt="${p.name}" width="48" height="48" style="border-radius:50%;object-fit:cover;border:1px solid var(--border2);flex-shrink:0;">`
+          : `<div style="width:48px;height:48px;border-radius:50%;background:var(--surface);border:1px solid var(--border);flex-shrink:0;"></div>`;
+        return `<a href="${p.slug}/" class="blog-row" style="flex-direction:row;align-items:flex-start;gap:20px;">
+  <div style="padding-top:2px;">${iconHtml}</div>
+  <div style="flex:1;min-width:0;">
+    <div class="blog-date">${dateStr}</div>
+    <div class="blog-title">${p.name}</div>
+    ${excerpt}
+    <div class="blog-tags">${tags}</div>
+  </div>
 </a>`;
       }).join("\n");
 
