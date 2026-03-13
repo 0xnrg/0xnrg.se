@@ -499,6 +499,42 @@ ${MOBILE_JS}
 </html>`;
 }
 
+// ── buildTryHackMeIndex ───────────────────────────────────────────────────────
+// Generates dist/tryhackme/index.html (depth=1) — flat list, no tabs
+function buildTryHackMeIndex(rooms, nav, faviconFile) {
+  const rows = buildIndexRows(rooms);
+  const emptyMsg = rooms.length === 0
+    ? `<p style="margin-top:32px;font-family:'IBM Plex Mono',monospace;font-size:12px;color:var(--dim);">No writeups published yet.</p>`
+    : "";
+
+  return `<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>TryHackMe — 0xnrg.se</title>
+${faviconTag(faviconFile, 1)}
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@300;400;500&family=IBM+Plex+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+<style>${CSS}</style>
+</head>
+<body>
+${buildMobileTopbar(1)}
+<div class="shell">
+${nav}
+<main>
+  <div class="page-platform">writeups</div>
+  <h1>TryHackMe</h1>
+  <div style="padding-bottom:2px;border-bottom:1px solid var(--border);margin-bottom:0;margin-top:36px;">
+    <div style="font-family:'IBM Plex Mono',monospace;font-size:10px;color:var(--dim);text-transform:uppercase;letter-spacing:2px;padding:10px 0;">All Rooms</div>
+  </div>
+  ${rows}${emptyMsg}
+</main>
+</div>
+${MOBILE_JS}
+</body>
+</html>`;
+}
+
 // ── buildIndex ────────────────────────────────────────────────────────────────
 // Generates dist/htb/index.html (depth=1)
 function buildIndexRows(pages) {
@@ -615,20 +651,23 @@ async function main() {
   const [bioHtml, certs] = await Promise.all([fetchAbout(), fetchCerts()]);
   console.log(`Found ${certs.length} certifications`);
 
-  // Helper: query + enrich pages for a given category
-  async function fetchHtbCategory(category) {
+  // Helper: query + enrich pages for a given platform (and optional category)
+  // Items with status "Hidden" are filtered out entirely before building.
+  async function fetchItems(platform, category) {
+    const filterConditions = [
+      { property: "Platform", select: { equals: platform } }
+    ];
+    if (category) {
+      filterConditions.push({ property: "Category", select: { equals: category } });
+    }
+
     const res = await notion.databases.query({
       database_id: DATABASE_ID,
-      filter: {
-        and: [
-          { property: "Platform", select: { equals: "HTB" } },
-          { property: "Category", select: { equals: category } }
-        ]
-      },
+      filter: { and: filterConditions },
       sorts: [{ timestamp: "created_time", direction: "descending" }]
     });
 
-    const items = res.results.map(result => {
+    const allItems = res.results.map(result => {
       const props = result.properties;
       return {
         id:           result.id,
@@ -646,7 +685,11 @@ async function main() {
       };
     });
 
-    console.log(`Found ${items.length} ${category} pages — fetching content & icons...`);
+    // Filter out Hidden entries — they should not appear on the site at all
+    const items = allItems.filter(item => item.status !== "Hidden");
+
+    const label = category ? `${platform}/${category}` : platform;
+    console.log(`Found ${allItems.length} ${label} entries (${allItems.length - items.length} hidden, ${items.length} visible) — fetching content & icons...`);
 
     for (const page of items) {
       const contentPageId = extractContentPageId(page);
@@ -670,9 +713,10 @@ async function main() {
     return items;
   }
 
-  const [pages, proLabPages] = await Promise.all([
-    fetchHtbCategory("Lab"),
-    fetchHtbCategory("Pro Lab")
+  const [pages, proLabPages, thmRooms] = await Promise.all([
+    fetchItems("HTB", "Lab"),
+    fetchItems("HTB", "Pro Lab"),
+    fetchItems("TryHackMe", null)
   ]);
 
   // Copy favicon if present
@@ -711,9 +755,29 @@ async function main() {
     console.log(`Built: htb/${page.slug}/`);
   }
 
+  // ── TryHackMe index at dist/tryhackme/index.html (depth=1) ──
+  const thmDir = path.join(OUT_DIR, "tryhackme");
+  if (!fs.existsSync(thmDir)) fs.mkdirSync(thmDir, { recursive: true });
+  const thmNav  = buildNav(1, "tryhackme");
+  const thmHtml = buildTryHackMeIndex(thmRooms, thmNav, faviconFile);
+  fs.writeFileSync(path.join(thmDir, "index.html"), thmHtml);
+  console.log("Built tryhackme/index.html");
+
+  // ── Individual TryHackMe room pages at dist/tryhackme/{slug}/ (depth=2) ──
+  for (const room of thmRooms) {
+    const roomDir = path.join(OUT_DIR, "tryhackme", room.slug);
+    if (!fs.existsSync(roomDir)) fs.mkdirSync(roomDir, { recursive: true });
+
+    const nav  = buildNav(2, "tryhackme");
+    const html = buildPage(room, nav, room.bodyHtml, faviconFile);
+    fs.writeFileSync(path.join(roomDir, "index.html"), html);
+    console.log(`Built: tryhackme/${room.slug}/`);
+  }
+
   // ── Platform placeholder pages at dist/{slug}/index.html (depth=1) ──
   for (const p of PLATFORMS) {
-    if (p.key === "htb") continue; // HTB handled above
+    if (p.key === "htb") continue;       // HTB handled above
+    if (p.key === "tryhackme") continue; // TryHackMe handled above
     const dir = path.join(OUT_DIR, p.slug);
     if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
     const nav  = buildNav(1, p.key);
