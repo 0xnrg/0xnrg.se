@@ -340,6 +340,9 @@ ${MOBILE_JS}
 function buildBlogPostPage(post, nav, faviconFile) {
   const dateStr = post.date ? new Date(post.date).toLocaleDateString("sv-SE") : "";
   const tags = (post.tags || []).map(t => `<span class="chip">${t}</span>`).join("");
+  const iconHtml = post.icon
+    ? `<img src="${post.icon}" class="box-icon" alt="${post.name}">`
+    : `<div class="icon-placeholder"></div>`;
 
   return `<!DOCTYPE html>
 <html lang="en">
@@ -358,7 +361,10 @@ ${buildMobileTopbar(2)}
 ${nav}
 <main>
   <div class="page-platform">blog</div>
-  <h1>${post.name}</h1>
+  <div class="page-header">
+    ${iconHtml}
+    <h1>${post.name}</h1>
+  </div>
   <div class="post-meta">
     <span class="post-date">${dateStr}</span>
     ${tags}
@@ -721,16 +727,21 @@ async function fetchBlogPosts() {
         tags:    props.Tags?.multi_select?.map(t => t.name) || [],
         excerpt: props.Excerpt?.rich_text?.[0]?.plain_text || "",
         slug:    slugify(name),
+        icon:    null,
         bodyHtml: ""
       };
     });
 
-    console.log(`Found ${posts.length} published blog posts — fetching content...`);
+    console.log(`Found ${posts.length} published blog posts — fetching content & icons...`);
 
     for (const post of posts) {
       try {
         console.log(`  ${post.name}`);
-        const mdBlocks = await n2m.pageToMarkdown(post.id);
+        const [pageMeta, mdBlocks] = await Promise.all([
+          notion.pages.retrieve({ page_id: post.id }),
+          n2m.pageToMarkdown(post.id)
+        ]);
+        post.icon = pageMeta.icon?.external?.url || pageMeta.icon?.file?.url || null;
         const mdString = n2m.toMarkdownString(mdBlocks);
         post.bodyHtml = markdownToHtml(mdString.parent || "");
         if (!post.bodyHtml.trim()) post.bodyHtml = "<p>No content yet.</p>";
