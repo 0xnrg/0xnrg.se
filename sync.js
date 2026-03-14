@@ -32,6 +32,7 @@ const CSS = `
   --accent:  #56b6c2;
   --code-bg: #282c34;
 }
+html { zoom: 1.15; }
 body { background:var(--bg); color:var(--text); font-family:'IBM Plex Sans',sans-serif; font-weight:300; font-size:15px; line-height:1.75; }
 .shell { display:grid; grid-template-columns:260px 1fr; min-height:100vh; }
 
