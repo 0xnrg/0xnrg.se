@@ -3,6 +3,8 @@ const { NotionToMarkdown } = require("notion-to-md");
 const { marked } = require("marked");
 const fs = require("fs");
 const path = require("path");
+const https = require("https");
+const http = require("http");
 
 const notion = new Client({ auth: process.env.NOTION_TOKEN });
 const n2m = new NotionToMarkdown({ notionClient: notion });
@@ -262,6 +264,41 @@ function copyFavicon() {
 function faviconTag(faviconFile, depth) {
   if (!faviconFile) return "";
   return `<link rel="icon" href="${pathPrefix(depth)}${faviconFile}">`;
+}
+
+// ── downloadIcon ─────────────────────────────────────────────────────────────
+// Downloads a Notion icon URL to dist/icons/{prefix}-{slug}.ext
+// Returns the root-relative path "/icons/..." or null on failure.
+async function downloadIcon(url, prefix, slug) {
+  if (!url) return null;
+  try {
+    const iconsDir = path.join(OUT_DIR, "icons");
+    if (!fs.existsSync(iconsDir)) fs.mkdirSync(iconsDir, { recursive: true });
+
+    const urlPath = new URL(url).pathname;
+    const ext = path.extname(urlPath).split("?")[0] || ".png";
+    const filename = `${prefix}-${slug}${ext}`;
+    const filepath = path.join(iconsDir, filename);
+
+    await new Promise((resolve, reject) => {
+      const protocol = url.startsWith("https") ? https : http;
+      protocol.get(url, (res) => {
+        if (res.statusCode !== 200) {
+          res.resume();
+          return reject(new Error(`HTTP ${res.statusCode}`));
+        }
+        const file = fs.createWriteStream(filepath);
+        res.pipe(file);
+        file.on("finish", () => file.close(resolve));
+        file.on("error", reject);
+      }).on("error", reject);
+    });
+
+    return `/icons/${filename}`;
+  } catch (e) {
+    console.warn(`  Could not download icon for ${prefix}-${slug}:`, e.message);
+    return null;
+  }
 }
 
 const PLATFORMS = [
@@ -747,7 +784,8 @@ async function fetchBlogPosts() {
           notion.pages.retrieve({ page_id: post.id }),
           n2m.pageToMarkdown(post.id)
         ]);
-        post.icon = pageMeta.icon?.external?.url || pageMeta.icon?.file?.url || null;
+        const rawIconUrl = pageMeta.icon?.external?.url || pageMeta.icon?.file?.url || null;
+        post.icon = await downloadIcon(rawIconUrl, "blog", post.slug);
         const mdString = n2m.toMarkdownString(mdBlocks);
         post.bodyHtml = markdownToHtml(mdString.parent || "");
         if (!post.bodyHtml.trim()) post.bodyHtml = "<p>No content yet.</p>";
@@ -822,7 +860,8 @@ async function main() {
           notion.pages.retrieve({ page_id: contentPageId }),
           n2m.pageToMarkdown(contentPageId)
         ]);
-        page.icon = pageMeta.icon?.external?.url || pageMeta.icon?.file?.url || null;
+        const rawIconUrl = pageMeta.icon?.external?.url || pageMeta.icon?.file?.url || null;
+        page.icon = await downloadIcon(rawIconUrl, slugify(page.platform), page.slug);
         const mdString = n2m.toMarkdownString(mdBlocks);
         page.bodyHtml = markdownToHtml(mdString.parent || "");
         if (!page.bodyHtml.trim()) page.bodyHtml = "<p>No content found on the linked Notion page.</p>";
