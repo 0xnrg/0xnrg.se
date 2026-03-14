@@ -25,14 +25,14 @@ const CSS = `
   --surface: #222428;
   --border:  #2d2f36;
   --border2: #3a3d46;
-  --text:    #abb2bf;
-  --muted:   #6b7280;
-  --dim:     #44475a;
+  --text:    #c0c8d6;
+  --muted:   #8290a4;
+  --dim:     #666d80;
   --white:   #e8eaf0;
   --accent:  #56b6c2;
   --code-bg: #282c34;
 }
-body { background:var(--bg); color:var(--text); font-family:'IBM Plex Sans',sans-serif; font-weight:300; font-size:14px; line-height:1.75; }
+body { background:var(--bg); color:var(--text); font-family:'IBM Plex Sans',sans-serif; font-weight:300; font-size:15px; line-height:1.75; }
 .shell { display:grid; grid-template-columns:260px 1fr; min-height:100vh; }
 
 /* ── NAV ── */
