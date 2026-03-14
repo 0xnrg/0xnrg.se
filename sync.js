@@ -149,7 +149,7 @@ footer { border-top:1px solid var(--border); margin-top:64px; padding:28px 0 8px
 .footer-links { display:flex; gap:20px; align-items:center; }
 .footer-link { color:var(--dim); display:flex; align-items:center; transition:opacity .15s; opacity:.7; }
 .footer-link:hover { opacity:1; color:var(--accent); }
-.footer-link svg { width:16px; height:16px; stroke:currentColor; fill:none; }
+.footer-link svg { width:16px; height:16px; }
 .footer-link img { width:16px; height:16px; display:block; filter:brightness(0) invert(.5); transition:filter .15s; }
 .footer-link:hover img { filter:brightness(0) invert(.85); }
 
@@ -284,12 +284,12 @@ function buildFooter() {
   <span class="footer-copy">© ${year} 0xnrg</span>
   <div class="footer-links">
     <a href="mailto:0xnrg@proton.me" class="footer-link" title="Mail">
-      <svg viewBox="0 0 24 24" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7"/></svg>
+      <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7"/></svg>
     </a>
     <a href="https://www.linkedin.com/in/chrcar/" class="footer-link" title="LinkedIn" target="_blank" rel="noopener">
-      <img src="https://cdn.simpleicons.org/linkedin/ffffff" alt="LinkedIn">
+      <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor"><path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433c-1.144 0-2.063-.926-2.063-2.065 0-1.138.92-2.063 2.063-2.063 1.14 0 2.064.925 2.064 2.063 0 1.139-.925 2.065-2.064 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z"/></svg>
     </a>
-    <a href="https://discord.com" class="footer-link" title="Discord: 0xnrg" target="_blank" rel="noopener">
+    <a href="https://discord.com/users/1153883720999260222" class="footer-link" title="Discord: 0xnrg" target="_blank" rel="noopener">
       <img src="https://cdn.simpleicons.org/discord/ffffff" alt="Discord">
     </a>
     <a href="https://keybase.io/0xnrg" class="footer-link" title="Keybase" target="_blank" rel="noopener">
