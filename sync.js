@@ -523,40 +523,54 @@ ${nav}
 <main>
   <div class="about-role">Cyber Security Consultant</div>
   <h1>0xnrg</h1>
-
-  <div class="about-bio">
-    ${bioHtml}
+  <div class="tab-bar">
+    <button class="tab active" onclick="showTab('about', this)">About</button>
+    <button class="tab" onclick="showTab('portfolio', this)">Portfolio</button>
   </div>
 
-  <h2>Certifications</h2>
-
-  <h3>Achieved</h3>
-  <div class="cert-table-wrap">
-    <table>
-      <thead>
-        <tr><th>Certification</th><th>Provider</th><th>Year</th></tr>
-      </thead>
-      <tbody>
-        ${achievedRows}
-      </tbody>
-    </table>
+  <div id="tab-about">
+    <div class="about-bio">
+      ${bioHtml}
+    </div>
   </div>
 
-  <h3>Goals</h3>
-  <div class="cert-table-wrap">
-    <table>
-      <thead>
-        <tr><th>Certification</th><th>Provider</th><th>Status</th></tr>
-      </thead>
-      <tbody>
-        ${goalRows}
-      </tbody>
-    </table>
+  <div id="tab-portfolio" style="display:none">
+    <h3 style="margin-top:36px;">Achieved</h3>
+    <div class="cert-table-wrap">
+      <table>
+        <thead>
+          <tr><th>Certification</th><th>Provider</th><th>Year</th></tr>
+        </thead>
+        <tbody>
+          ${achievedRows}
+        </tbody>
+      </table>
+    </div>
+
+    <h3>Goals</h3>
+    <div class="cert-table-wrap">
+      <table>
+        <thead>
+          <tr><th>Certification</th><th>Provider</th><th>Status</th></tr>
+        </thead>
+        <tbody>
+          ${goalRows}
+        </tbody>
+      </table>
+    </div>
   </div>
 
   ${buildFooter()}
 </main>
 </div>
+<script>
+function showTab(t, btn) {
+  document.getElementById('tab-about').style.display     = t === 'about'     ? 'block' : 'none';
+  document.getElementById('tab-portfolio').style.display = t === 'portfolio' ? 'block' : 'none';
+  document.querySelectorAll('.tab').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+}
+</script>
 ${MOBILE_JS}
 </body>
 </html>`;
