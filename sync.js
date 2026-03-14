@@ -143,6 +143,16 @@ em { color:var(--muted); font-style:italic; }
 .post-meta { display:flex; gap:12px; align-items:center; flex-wrap:wrap; margin-bottom:44px; padding-bottom:36px; border-bottom:1px solid var(--border); }
 .post-date { font-family:'IBM Plex Mono',monospace; font-size:10.5px; color:var(--dim); }
 
+/* ── FOOTER ── */
+footer { border-top:1px solid var(--border); margin-top:64px; padding:28px 0 8px; display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:14px; }
+.footer-copy { font-family:'IBM Plex Mono',monospace; font-size:10px; color:var(--dim); letter-spacing:.5px; }
+.footer-links { display:flex; gap:20px; align-items:center; }
+.footer-link { color:var(--dim); display:flex; align-items:center; transition:opacity .15s; opacity:.7; }
+.footer-link:hover { opacity:1; color:var(--accent); }
+.footer-link svg { width:16px; height:16px; stroke:currentColor; fill:none; }
+.footer-link img { width:16px; height:16px; display:block; filter:brightness(0) invert(.5); transition:filter .15s; }
+.footer-link:hover img { filter:brightness(0) invert(.85); }
+
 /* ── SCROLLBAR ── */
 ::-webkit-scrollbar { width:3px; }
 ::-webkit-scrollbar-thumb { background:var(--border2); border-radius:2px; }
@@ -267,6 +277,34 @@ function faviconTag(faviconFile, depth) {
   return `<link rel="icon" href="${pathPrefix(depth)}${faviconFile}">`;
 }
 
+// ── buildFooter ───────────────────────────────────────────────────────────────
+function buildFooter() {
+  const year = new Date().getFullYear();
+  return `<footer>
+  <span class="footer-copy">© ${year} 0xnrg</span>
+  <div class="footer-links">
+    <a href="mailto:0xnrg@proton.me" class="footer-link" title="Mail">
+      <svg viewBox="0 0 24 24" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7"/></svg>
+    </a>
+    <a href="https://www.linkedin.com/in/chrcar/" class="footer-link" title="LinkedIn" target="_blank" rel="noopener">
+      <img src="https://cdn.simpleicons.org/linkedin/ffffff" alt="LinkedIn">
+    </a>
+    <a href="https://discord.com" class="footer-link" title="Discord: 0xnrg" target="_blank" rel="noopener">
+      <img src="https://cdn.simpleicons.org/discord/ffffff" alt="Discord">
+    </a>
+    <a href="https://keybase.io/0xnrg" class="footer-link" title="Keybase" target="_blank" rel="noopener">
+      <img src="https://cdn.simpleicons.org/keybase/ffffff" alt="Keybase">
+    </a>
+    <a href="https://app.hackthebox.com/users/2049492" class="footer-link" title="Hack The Box" target="_blank" rel="noopener">
+      <img src="https://cdn.simpleicons.org/hackthebox/ffffff" alt="Hack The Box">
+    </a>
+    <a href="https://tryhackme.com/p/0xNRG" class="footer-link" title="TryHackMe" target="_blank" rel="noopener">
+      <img src="https://cdn.simpleicons.org/tryhackme/ffffff" alt="TryHackMe">
+    </a>
+  </div>
+</footer>`;
+}
+
 // ── downloadIcon ─────────────────────────────────────────────────────────────
 // Downloads a Notion icon URL to dist/icons/{prefix}-{slug}.ext
 // Returns the root-relative path "/icons/..." or null on failure.
@@ -373,6 +411,7 @@ ${nav}
     <div style="font-family:'IBM Plex Mono',monospace;font-size:10px;color:var(--dim);text-transform:uppercase;letter-spacing:2px;padding:10px 0;">All Posts</div>
   </div>
   ${rows}
+  ${buildFooter()}
 </main>
 </div>
 ${MOBILE_JS}
@@ -414,6 +453,7 @@ ${nav}
     ${tags}
   </div>
   ${post.bodyHtml}
+  ${buildFooter()}
 </main>
 </div>
 <script>hljs.highlightAll();</script>
@@ -514,6 +554,7 @@ ${nav}
     </table>
   </div>
 
+  ${buildFooter()}
 </main>
 </div>
 ${MOBILE_JS}
@@ -570,6 +611,7 @@ ${nav}
     ${diffTag}${osTags}${focusTags}
   </div>
   ${contentHtml}
+  ${buildFooter()}
 </main>
 </div>
 <script>hljs.highlightAll();</script>
@@ -602,6 +644,7 @@ ${nav}
     <div style="font-family:'IBM Plex Mono',monospace;font-size:10px;color:var(--dim);text-transform:uppercase;letter-spacing:2px;padding:10px 0;">All Labs</div>
   </div>
   <p style="margin-top:32px;font-family:'IBM Plex Mono',monospace;font-size:12px;color:var(--dim);">No writeups published yet.</p>
+  ${buildFooter()}
 </main>
 </div>
 ${MOBILE_JS}
@@ -638,6 +681,7 @@ ${nav}
     <div style="font-family:'IBM Plex Mono',monospace;font-size:10px;color:var(--dim);text-transform:uppercase;letter-spacing:2px;padding:10px 0;">All Rooms</div>
   </div>
   ${rows}${emptyMsg}
+  ${buildFooter()}
 </main>
 </div>
 ${MOBILE_JS}
@@ -694,6 +738,7 @@ ${nav}
   </div>
   <div id="tab-labs">${labRows}</div>
   <div id="tab-prolabs" style="display:none">${proLabRows}</div>
+  ${buildFooter()}
 </main>
 </div>
 <script>
