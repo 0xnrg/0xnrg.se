@@ -223,7 +223,7 @@ function buildMobileTopbar(depth) {
 }
 
 function platformLabel(platform) {
-  const map = { HTB: "Hack The Box", TryHackMe: "TryHackMe", VulnLab: "VulnLab", OFFSEC: "OffSec", Other: "Other" };
+  const map = { HTB: "Hack The Box", VulnLab: "VulnLab", OFFSEC: "OffSec", Other: "Other" };
   return map[platform] || platform;
 }
 
@@ -298,9 +298,6 @@ function buildFooter() {
     <a href="https://app.hackthebox.com/users/2049492" class="footer-link" title="Hack The Box" target="_blank" rel="noopener">
       <img src="https://cdn.simpleicons.org/hackthebox/ffffff" alt="Hack The Box">
     </a>
-    <a href="https://tryhackme.com/p/0xNRG" class="footer-link" title="TryHackMe" target="_blank" rel="noopener">
-      <img src="https://cdn.simpleicons.org/tryhackme/ffffff" alt="TryHackMe">
-    </a>
   </div>
 </footer>`;
 }
@@ -344,7 +341,6 @@ const PLATFORMS = [
   { key: "htb",        label: "Hack The Box", slug: "htb"       },
   { key: "vulnlab",    label: "VulnLab",       slug: "vulnlab"   },
   { key: "offsec",     label: "OffSec",        slug: "offsec"    },
-  { key: "tryhackme",  label: "TryHackMe",     slug: "tryhackme" },
 ];
 
 // ── buildNav ─────────────────────────────────────────────────────────────────
