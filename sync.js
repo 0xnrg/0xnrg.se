@@ -472,7 +472,13 @@ const CERT_GOAL_ORDER = [
 
 // ── buildAboutPage ────────────────────────────────────────────────────────────
 function buildAboutPage(nav, certs, bioHtml, faviconFile) {
-  const achieved = certs.filter(c => c.status === "Achieved");
+  const achieved = certs
+    .filter(c => c.status === "Achieved")
+    .sort((a, b) => {
+      const da = a.dateAchieved ? new Date(a.dateAchieved) : new Date(0);
+      const db = b.dateAchieved ? new Date(b.dateAchieved) : new Date(0);
+      return da - db;
+    });
   const goals    = certs
     .filter(c => c.status !== "Achieved")
     .sort((a, b) => {
