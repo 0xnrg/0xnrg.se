@@ -246,8 +246,39 @@ function extractContentPageId(page) {
   return page.id;
 }
 
+// Notion serialises toggles and toggleable headings by indenting their children
+// with a tab. Markdown reads a leading tab as an indented code block, so those
+// sections collapse into one grey box where the ``` fences and image markdown
+// show up as literal text instead of real code blocks and images. Flatten each
+// toggle into a plain section: drop the {toggle="true"} marker and strip one
+// level of tab indentation from the lines that follow.
+function flattenNotionToggles(md) {
+  const out = [];
+  let inFence = false;
+  let fenceIndented = false; // was the open fence itself tab-indented (i.e. inside a toggle)?
+  for (const raw of md.split("\n")) {
+    const fence = raw.match(/^(\t*)(```|~~~)/);
+    if (fence) {
+      // A code fence: toggle-nested code marks only the fence lines with a tab,
+      // not the code content, so track state here rather than by line indent.
+      if (!inFence) { inFence = true; fenceIndented = fence[1].length > 0; }
+      else inFence = false;
+      out.push(raw.startsWith("\t") ? raw.slice(1) : raw);
+    } else if (inFence) {
+      // De-indent code content only for toggle-nested fences; leave top-level
+      // code blocks untouched so deliberate tab indentation survives.
+      out.push(fenceIndented && raw.startsWith("\t") ? raw.slice(1) : raw);
+    } else {
+      // Outside a fence: drop the {toggle="true"} marker and de-indent one level.
+      const line = raw.replace(/^(#{1,6}\s+.*?)\s*\{toggle="?true"?\}\s*$/, "$1");
+      out.push(line.startsWith("\t") ? line.slice(1) : line);
+    }
+  }
+  return out.join("\n");
+}
+
 function markdownToHtml(md) {
-  const stripped = md.replace(/^#\s+.+\n?/, "");
+  const stripped = flattenNotionToggles(md).replace(/^#\s+.+\n?/, "");
   return marked.parse(stripped);
 }
 
