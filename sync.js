@@ -345,7 +345,7 @@ const PLATFORMS = [
 
 // ── buildNav ─────────────────────────────────────────────────────────────────
 // depth: 0 = root, 1 = platform index, 2 = writeup page
-// activePlatform: "htb" | "vulnlab" | "offsec" | "tryhackme" | "about"
+// activePlatform: "htb" | "vulnlab" | "offsec" | "blog" | "about"
 function buildNav(depth, activePlatform) {
   const prefix = pathPrefix(depth);
 
@@ -578,6 +578,20 @@ ${MOBILE_JS}
 </html>`;
 }
 
+// Copy for the "restricted" card shown on writeups that aren't Completed
+function lockCopy(platform) {
+  if (platform === "HTB") {
+    return {
+      body: "This machine is currently active. The full writeup will be published once the box retires, in accordance with HTB's NDA policy.",
+      eta:  "Status — Active"
+    };
+  }
+  return {
+    body: "This writeup is still in progress. The full version will be published once the lab is finished.",
+    eta:  "Status — In Progress"
+  };
+}
+
 // ── buildPage ─────────────────────────────────────────────────────────────────
 function buildPage(page, nav, bodyHtml, faviconFile) {
   const isLocked = page.status !== "Completed";
@@ -589,6 +603,7 @@ function buildPage(page, nav, bodyHtml, faviconFile) {
     ? `<img src="${page.icon}" class="box-icon" alt="${page.name}">`
     : `<div class="icon-placeholder"></div>`;
 
+  const lock = lockCopy(page.platform);
   const contentHtml = isLocked
     ? `<div class="lock-wrap">
   <div class="lock-inner">${bodyHtml}</div>
@@ -597,8 +612,8 @@ function buildPage(page, nav, bodyHtml, faviconFile) {
 <div class="lock-card">
   <div style="font-size:16px;color:var(--dim);margin-bottom:14px;">—</div>
   <h3>Writeup restricted</h3>
-  <p>This machine is currently active. The full writeup will be published once the box retires, in accordance with HTB's NDA policy.</p>
-  <div class="eta">Status — Active</div>
+  <p>${lock.body}</p>
+  <div class="eta">${lock.eta}</div>
 </div>`
     : bodyHtml;
 
@@ -668,11 +683,11 @@ ${MOBILE_JS}
 </html>`;
 }
 
-// ── buildTryHackMeIndex ───────────────────────────────────────────────────────
-// Generates dist/tryhackme/index.html (depth=1) — flat list, no tabs
-function buildTryHackMeIndex(rooms, nav, faviconFile) {
-  const rows = buildIndexRows(rooms);
-  const emptyMsg = rooms.length === 0
+// ── buildFlatIndex ────────────────────────────────────────────────────────────
+// Generates a platform index at dist/{slug}/index.html (depth=1) — flat list, no tabs
+function buildFlatIndex(label, heading, items, nav, faviconFile) {
+  const rows = buildIndexRows(items);
+  const emptyMsg = items.length === 0
     ? `<p style="margin-top:32px;font-family:'IBM Plex Mono',monospace;font-size:12px;color:var(--dim);">No writeups published yet.</p>`
     : "";
 
@@ -681,7 +696,7 @@ function buildTryHackMeIndex(rooms, nav, faviconFile) {
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>TryHackMe — 0xnrg.se</title>
+<title>${label} — 0xnrg.se</title>
 ${faviconTag(faviconFile, 1)}
 <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@300;400;500&family=IBM+Plex+Sans:wght@300;400;500&display=swap" rel="stylesheet">
 <style>${CSS}</style>
@@ -692,9 +707,9 @@ ${buildMobileTopbar(1)}
 ${nav}
 <main>
   <div class="page-platform">writeups</div>
-  <h1>TryHackMe</h1>
+  <h1>${label}</h1>
   <div style="padding-bottom:2px;border-bottom:1px solid var(--border);margin-bottom:0;margin-top:36px;">
-    <div style="font-family:'IBM Plex Mono',monospace;font-size:10px;color:var(--dim);text-transform:uppercase;letter-spacing:2px;padding:10px 0;">All Rooms</div>
+    <div style="font-family:'IBM Plex Mono',monospace;font-size:10px;color:var(--dim);text-transform:uppercase;letter-spacing:2px;padding:10px 0;">${heading}</div>
   </div>
   ${rows}${emptyMsg}
   ${buildFooter()}
@@ -937,10 +952,10 @@ async function main() {
     return items;
   }
 
-  const [pages, proLabPages, thmRooms, blogPosts] = await Promise.all([
+  const [pages, proLabPages, offsecLabs, blogPosts] = await Promise.all([
     fetchItems("HTB", "Lab"),
     fetchItems("HTB", "Pro Lab"),
-    fetchItems("TryHackMe", null),
+    fetchItems("OFFSEC", null),
     fetchBlogPosts()
   ]);
 
@@ -990,29 +1005,30 @@ async function main() {
     console.log(`Built: htb/${page.slug}/`);
   }
 
-  // ── TryHackMe index at dist/tryhackme/index.html (depth=1) ──
-  const thmDir = path.join(OUT_DIR, "tryhackme");
-  if (!fs.existsSync(thmDir)) fs.mkdirSync(thmDir, { recursive: true });
-  const thmNav  = buildNav(1, "tryhackme");
-  const thmHtml = buildTryHackMeIndex(thmRooms, thmNav, faviconFile);
-  fs.writeFileSync(path.join(thmDir, "index.html"), thmHtml);
-  console.log("Built tryhackme/index.html");
+  // ── Flat platform sections: index at dist/{slug}/ + one page per writeup ──
+  function buildFlatPlatform(key, slug, label, heading, items) {
+    const dir = path.join(OUT_DIR, slug);
+    if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
+    const indexHtml = buildFlatIndex(label, heading, items, buildNav(1, key), faviconFile);
+    fs.writeFileSync(path.join(dir, "index.html"), indexHtml);
+    console.log(`Built ${slug}/index.html (${items.length} writeups)`);
 
-  // ── Individual TryHackMe room pages at dist/tryhackme/{slug}/ (depth=2) ──
-  for (const room of thmRooms) {
-    const roomDir = path.join(OUT_DIR, "tryhackme", room.slug);
-    if (!fs.existsSync(roomDir)) fs.mkdirSync(roomDir, { recursive: true });
+    for (const item of items) {
+      const itemDir = path.join(dir, item.slug);
+      if (!fs.existsSync(itemDir)) fs.mkdirSync(itemDir, { recursive: true });
 
-    const nav  = buildNav(2, "tryhackme");
-    const html = buildPage(room, nav, room.bodyHtml, faviconFile);
-    fs.writeFileSync(path.join(roomDir, "index.html"), html);
-    console.log(`Built: tryhackme/${room.slug}/`);
+      const html = buildPage(item, buildNav(2, key), item.bodyHtml, faviconFile);
+      fs.writeFileSync(path.join(itemDir, "index.html"), html);
+      console.log(`Built: ${slug}/${item.slug}/`);
+    }
   }
+
+  buildFlatPlatform("offsec", "offsec", "OffSec", "All Labs", offsecLabs);
 
   // ── Platform placeholder pages at dist/{slug}/index.html (depth=1) ──
   for (const p of PLATFORMS) {
-    if (p.key === "htb") continue;       // HTB handled above
-    if (p.key === "tryhackme") continue; // TryHackMe handled above
+    if (p.key === "htb") continue;    // HTB handled above
+    if (p.key === "offsec") continue; // OffSec handled above
     const dir = path.join(OUT_DIR, p.slug);
     if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
     const nav  = buildNav(1, p.key);
