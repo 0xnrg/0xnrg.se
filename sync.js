@@ -302,6 +302,15 @@ function buildFooter() {
 </footer>`;
 }
 
+// Picks the downloadable URL out of a Notion page icon.
+// Notion has three image-backed icon types: "external" (linked URL), "file"
+// (uploaded to the page) and "custom_emoji" (workspace emoji). Plain "emoji"
+// icons are a unicode character with no URL, so they return null.
+function iconUrl(icon) {
+  if (!icon) return null;
+  return icon.external?.url || icon.file?.url || icon.custom_emoji?.url || null;
+}
+
 // ── downloadIcon ─────────────────────────────────────────────────────────────
 // Downloads a Notion icon URL to dist/icons/{prefix}-{slug}.ext
 // Returns the root-relative path "/icons/..." or null on failure.
@@ -339,13 +348,12 @@ async function downloadIcon(url, prefix, slug) {
 
 const PLATFORMS = [
   { key: "htb",        label: "Hack The Box", slug: "htb"       },
-  { key: "vulnlab",    label: "VulnLab",       slug: "vulnlab"   },
   { key: "offsec",     label: "OffSec",        slug: "offsec"    },
 ];
 
 // ── buildNav ─────────────────────────────────────────────────────────────────
 // depth: 0 = root, 1 = platform index, 2 = writeup page
-// activePlatform: "htb" | "vulnlab" | "offsec" | "blog" | "about"
+// activePlatform: "htb" | "offsec" | "blog" | "about"
 function buildNav(depth, activePlatform) {
   const prefix = pathPrefix(depth);
 
@@ -651,38 +659,6 @@ ${MOBILE_JS}
 </html>`;
 }
 
-// ── buildPlatformPage ─────────────────────────────────────────────────────────
-function buildPlatformPage(label, nav, faviconFile) {
-  return `<!DOCTYPE html>
-<html lang="en">
-<head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>${label} — 0xnrg.se</title>
-${faviconTag(faviconFile, 1)}
-<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@300;400;500&family=IBM+Plex+Sans:wght@300;400;500&display=swap" rel="stylesheet">
-<style>${CSS}</style>
-</head>
-<body>
-${buildMobileTopbar(1)}
-<div class="shell">
-${nav}
-<main>
-  <div class="page-platform">writeups</div>
-  <h1>${label}</h1>
-  <div style="height:36px;"></div>
-  <div style="padding-bottom:2px;border-bottom:1px solid var(--border);margin-bottom:0;">
-    <div style="font-family:'IBM Plex Mono',monospace;font-size:10px;color:var(--dim);text-transform:uppercase;letter-spacing:2px;padding:10px 0;">All Labs</div>
-  </div>
-  <p style="margin-top:32px;font-family:'IBM Plex Mono',monospace;font-size:12px;color:var(--dim);">No writeups published yet.</p>
-  ${buildFooter()}
-</main>
-</div>
-${MOBILE_JS}
-</body>
-</html>`;
-}
-
 // ── buildFlatIndex ────────────────────────────────────────────────────────────
 // Generates a platform index at dist/{slug}/index.html (depth=1) — flat list, no tabs
 function buildFlatIndex(label, heading, items, nav, faviconFile) {
@@ -861,8 +837,7 @@ async function fetchBlogPosts() {
           notion.pages.retrieve({ page_id: post.id }),
           n2m.pageToMarkdown(post.id)
         ]);
-        const rawIconUrl = pageMeta.icon?.external?.url || pageMeta.icon?.file?.url || null;
-        post.icon = await downloadIcon(rawIconUrl, "blog", post.slug);
+        post.icon = await downloadIcon(iconUrl(pageMeta.icon), "blog", post.slug);
         const mdString = n2m.toMarkdownString(mdBlocks);
         post.bodyHtml = markdownToHtml(mdString.parent || "");
         if (!post.bodyHtml.trim()) post.bodyHtml = "<p>No content yet.</p>";
@@ -937,8 +912,7 @@ async function main() {
           notion.pages.retrieve({ page_id: contentPageId }),
           n2m.pageToMarkdown(contentPageId)
         ]);
-        const rawIconUrl = pageMeta.icon?.external?.url || pageMeta.icon?.file?.url || null;
-        page.icon = await downloadIcon(rawIconUrl, slugify(page.platform), page.slug);
+        page.icon = await downloadIcon(iconUrl(pageMeta.icon), slugify(page.platform), page.slug);
         const mdString = n2m.toMarkdownString(mdBlocks);
         page.bodyHtml = markdownToHtml(mdString.parent || "");
         if (!page.bodyHtml.trim()) page.bodyHtml = "<p>No content found on the linked Notion page.</p>";
@@ -1024,18 +998,6 @@ async function main() {
   }
 
   buildFlatPlatform("offsec", "offsec", "OffSec", "All Labs", offsecLabs);
-
-  // ── Platform placeholder pages at dist/{slug}/index.html (depth=1) ──
-  for (const p of PLATFORMS) {
-    if (p.key === "htb") continue;    // HTB handled above
-    if (p.key === "offsec") continue; // OffSec handled above
-    const dir = path.join(OUT_DIR, p.slug);
-    if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
-    const nav  = buildNav(1, p.key);
-    const html = buildPlatformPage(p.label, nav, faviconFile);
-    fs.writeFileSync(path.join(dir, "index.html"), html);
-    console.log(`Built: ${p.slug}/`);
-  }
 
   // CNAME + .nojekyll
   fs.writeFileSync(path.join(OUT_DIR, "CNAME"), "0xnrg.se");
