@@ -342,6 +342,35 @@ function iconUrl(icon) {
   return icon.external?.url || icon.file?.url || icon.custom_emoji?.url || null;
 }
 
+// ── retry helpers ────────────────────────────────────────────────────────────
+const sleep = (ms) => new Promise(r => setTimeout(r, ms));
+
+// Retries a Notion API call on rate limits (429), server errors (5xx) and
+// transient network failures, honouring Retry-After. A genuine 404
+// (object_not_found — page deleted or not shared) is NOT retryable and fails
+// fast so it still surfaces in the log rather than being masked.
+async function withRetry(fn, label, tries = 5) {
+  let delay = 1000;
+  for (let attempt = 1; ; attempt++) {
+    try {
+      return await fn();
+    } catch (e) {
+      const st = e?.status;
+      const code = e?.code;
+      const retryable =
+        st === 429 || (typeof st === "number" && st >= 500) ||
+        code === "rate_limited" || code === "service_unavailable" || code === "internal_server_error" ||
+        ["ECONNRESET", "ETIMEDOUT", "EAI_AGAIN", "ENOTFOUND", "ECONNREFUSED"].includes(code);
+      if (attempt >= tries || !retryable) throw e;
+      const retryAfter = Number(e?.headers?.["retry-after"]) * 1000;
+      const wait = retryAfter > 0 ? retryAfter : delay;
+      console.warn(`  ${label}: ${e.message} — retry ${attempt}/${tries - 1} in ${Math.round(wait / 1000)}s`);
+      await sleep(wait);
+      delay = Math.min(delay * 2, 30000);
+    }
+  }
+}
+
 // ── downloadAsset ────────────────────────────────────────────────────────────
 // Downloads a URL to dist/{subdir}/{name}.ext, following redirects.
 // Returns the root-relative path "/{subdir}/..." or null on failure.
@@ -358,7 +387,7 @@ async function downloadAsset(url, subdir, name) {
 
     const fetchTo = (target, redirects = 0) => new Promise((resolve, reject) => {
       const protocol = target.startsWith("https") ? https : http;
-      protocol.get(target, (res) => {
+      const req = protocol.get(target, (res) => {
         // Notion's S3 URLs occasionally 30x to the real object.
         if ([301, 302, 303, 307, 308].includes(res.statusCode) && res.headers.location && redirects < 5) {
           res.resume();
@@ -372,7 +401,10 @@ async function downloadAsset(url, subdir, name) {
         res.pipe(file);
         file.on("finish", () => file.close(resolve));
         file.on("error", reject);
-      }).on("error", reject);
+      });
+      // Don't let a stalled S3 connection hang the whole build.
+      req.setTimeout(30000, () => req.destroy(new Error("download timeout")));
+      req.on("error", reject);
     });
 
     await fetchTo(url);
@@ -828,7 +860,7 @@ ${MOBILE_JS}
 async function fetchAbout() {
   console.log("Fetching About Me page from Notion...");
   try {
-    const mdBlocks = await n2m.pageToMarkdown(ABOUT_PAGE_ID);
+    const mdBlocks = await withRetry(() => n2m.pageToMarkdown(ABOUT_PAGE_ID), "About page");
     const mdString = n2m.toMarkdownString(mdBlocks);
     const md = await localizeImages(mdString.parent || "", "about");
     const html = markdownToHtml(md);
@@ -843,12 +875,12 @@ async function fetchAbout() {
 async function fetchCerts() {
   console.log("Fetching certifications from Notion...");
   try {
-    const response = await notion.databases.query({
+    const response = await withRetry(() => notion.databases.query({
       database_id: CERT_DB_ID,
       sorts: [
         { property: "Status", direction: "ascending" }
       ]
-    });
+    }), "cert database");
 
     return response.results.map(r => {
       const props = r.properties;
@@ -871,11 +903,11 @@ async function fetchCerts() {
 async function fetchBlogPosts() {
   console.log("Fetching blog posts from Notion...");
   try {
-    const res = await notion.databases.query({
+    const res = await withRetry(() => notion.databases.query({
       database_id: BLOG_DB_ID,
       filter: { property: "Status", select: { equals: "Published" } },
       sorts: [{ property: "Date", direction: "descending" }]
-    });
+    }), "blog database");
 
     const posts = res.results.map(result => {
       const props = result.properties;
@@ -898,8 +930,8 @@ async function fetchBlogPosts() {
       try {
         console.log(`  ${post.name}`);
         const [pageMeta, mdBlocks] = await Promise.all([
-          notion.pages.retrieve({ page_id: post.id }),
-          n2m.pageToMarkdown(post.id)
+          withRetry(() => notion.pages.retrieve({ page_id: post.id }), `retrieve ${post.name}`),
+          withRetry(() => n2m.pageToMarkdown(post.id), `content ${post.name}`)
         ]);
         post.icon = await downloadIcon(iconUrl(pageMeta.icon), "blog", post.slug);
         const mdString = n2m.toMarkdownString(mdBlocks);
@@ -939,11 +971,11 @@ async function main() {
       filterConditions.push({ property: "Category", select: { equals: category } });
     }
 
-    const res = await notion.databases.query({
+    const res = await withRetry(() => notion.databases.query({
       database_id: DATABASE_ID,
       filter: { and: filterConditions },
       sorts: [{ timestamp: "created_time", direction: "descending" }]
-    });
+    }), `${category ? platform + "/" + category : platform} database`);
 
     const allItems = res.results.map(result => {
       const props = result.properties;
@@ -974,8 +1006,8 @@ async function main() {
       try {
         console.log(`  [${page.status}] ${page.name} → ${contentPageId}`);
         const [pageMeta, mdBlocks] = await Promise.all([
-          notion.pages.retrieve({ page_id: contentPageId }),
-          n2m.pageToMarkdown(contentPageId)
+          withRetry(() => notion.pages.retrieve({ page_id: contentPageId }), `retrieve ${page.name}`),
+          withRetry(() => n2m.pageToMarkdown(contentPageId), `content ${page.name}`)
         ]);
         page.icon = await downloadIcon(iconUrl(pageMeta.icon), slugify(page.platform), page.slug);
         const mdString = n2m.toMarkdownString(mdBlocks);
@@ -992,12 +1024,12 @@ async function main() {
     return items;
   }
 
-  const [pages, proLabPages, offsecLabs, blogPosts] = await Promise.all([
-    fetchItems("HTB", "Lab"),
-    fetchItems("HTB", "Pro Lab"),
-    fetchItems("OFFSEC", null),
-    fetchBlogPosts()
-  ]);
+  // Fetch sequentially, not in parallel: four concurrent streams hammering the
+  // Notion API is what trips its rate limit (~3 req/s) and leaves pages blank.
+  const pages       = await fetchItems("HTB", "Lab");
+  const proLabPages = await fetchItems("HTB", "Pro Lab");
+  const offsecLabs  = await fetchItems("OFFSEC", null);
+  const blogPosts   = await fetchBlogPosts();
 
   // Copy favicon if present
   const faviconFile = copyFavicon();
