@@ -342,23 +342,28 @@ function iconUrl(icon) {
   return icon.external?.url || icon.file?.url || icon.custom_emoji?.url || null;
 }
 
-// ── downloadIcon ─────────────────────────────────────────────────────────────
-// Downloads a Notion icon URL to dist/icons/{prefix}-{slug}.ext
-// Returns the root-relative path "/icons/..." or null on failure.
-async function downloadIcon(url, prefix, slug) {
+// ── downloadAsset ────────────────────────────────────────────────────────────
+// Downloads a URL to dist/{subdir}/{name}.ext, following redirects.
+// Returns the root-relative path "/{subdir}/..." or null on failure.
+async function downloadAsset(url, subdir, name) {
   if (!url) return null;
   try {
-    const iconsDir = path.join(OUT_DIR, "icons");
-    if (!fs.existsSync(iconsDir)) fs.mkdirSync(iconsDir, { recursive: true });
+    const dir = path.join(OUT_DIR, subdir);
+    if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
 
     const urlPath = new URL(url).pathname;
     const ext = path.extname(urlPath).split("?")[0] || ".png";
-    const filename = `${prefix}-${slug}${ext}`;
-    const filepath = path.join(iconsDir, filename);
+    const filename = `${name}${ext}`;
+    const filepath = path.join(dir, filename);
 
-    await new Promise((resolve, reject) => {
-      const protocol = url.startsWith("https") ? https : http;
-      protocol.get(url, (res) => {
+    const fetchTo = (target, redirects = 0) => new Promise((resolve, reject) => {
+      const protocol = target.startsWith("https") ? https : http;
+      protocol.get(target, (res) => {
+        // Notion's S3 URLs occasionally 30x to the real object.
+        if ([301, 302, 303, 307, 308].includes(res.statusCode) && res.headers.location && redirects < 5) {
+          res.resume();
+          return resolve(fetchTo(new URL(res.headers.location, target).href, redirects + 1));
+        }
         if (res.statusCode !== 200) {
           res.resume();
           return reject(new Error(`HTTP ${res.statusCode}`));
@@ -370,11 +375,38 @@ async function downloadIcon(url, prefix, slug) {
       }).on("error", reject);
     });
 
-    return `/icons/${filename}`;
+    await fetchTo(url);
+    return `/${subdir}/${filename}`;
   } catch (e) {
-    console.warn(`  Could not download icon for ${prefix}-${slug}:`, e.message);
+    console.warn(`  Could not download asset ${subdir}/${name}:`, e.message);
     return null;
   }
+}
+
+// ── downloadIcon ─────────────────────────────────────────────────────────────
+// Downloads a Notion icon URL to dist/icons/{prefix}-{slug}.ext
+// Returns the root-relative path "/icons/..." or null on failure.
+function downloadIcon(url, prefix, slug) {
+  return downloadAsset(url, "icons", `${prefix}-${slug}`);
+}
+
+// ── localizeImages ───────────────────────────────────────────────────────────
+// Notion embeds inline images as time-limited signed S3 URLs (they expire ~5
+// minutes after the build). Download each one into dist/images/ and rewrite the
+// markdown to the local copy so the images keep working after publish.
+async function localizeImages(md, prefix) {
+  if (!md) return md;
+  const seen = new Map();
+  let index = 0;
+  for (const m of md.matchAll(/!\[[^\]]*\]\((https?:\/\/[^)\s]+)\)/g)) {
+    const url = m[1];
+    if (seen.has(url)) continue;
+    index++;
+    const local = await downloadAsset(url, "images", `${prefix}-${index}`);
+    if (local) seen.set(url, local);
+  }
+  for (const [url, local] of seen) md = md.split(url).join(local);
+  return md;
 }
 
 const PLATFORMS = [
@@ -798,7 +830,8 @@ async function fetchAbout() {
   try {
     const mdBlocks = await n2m.pageToMarkdown(ABOUT_PAGE_ID);
     const mdString = n2m.toMarkdownString(mdBlocks);
-    const html = markdownToHtml(mdString.parent || "");
+    const md = await localizeImages(mdString.parent || "", "about");
+    const html = markdownToHtml(md);
     return html.trim() || "<p>No bio content found.</p>";
   } catch (e) {
     console.warn("Could not fetch About Me page:", e.message);
@@ -870,7 +903,8 @@ async function fetchBlogPosts() {
         ]);
         post.icon = await downloadIcon(iconUrl(pageMeta.icon), "blog", post.slug);
         const mdString = n2m.toMarkdownString(mdBlocks);
-        post.bodyHtml = markdownToHtml(mdString.parent || "");
+        const md = await localizeImages(mdString.parent || "", `blog-${post.slug}`);
+        post.bodyHtml = markdownToHtml(md);
         if (!post.bodyHtml.trim()) post.bodyHtml = "<p>No content yet.</p>";
       } catch (e) {
         console.warn(`  Could not fetch ${post.name}:`, e.message);
@@ -945,7 +979,8 @@ async function main() {
         ]);
         page.icon = await downloadIcon(iconUrl(pageMeta.icon), slugify(page.platform), page.slug);
         const mdString = n2m.toMarkdownString(mdBlocks);
-        page.bodyHtml = markdownToHtml(mdString.parent || "");
+        const md = await localizeImages(mdString.parent || "", `${slugify(page.platform)}-${page.slug}`);
+        page.bodyHtml = markdownToHtml(md);
         if (!page.bodyHtml.trim()) page.bodyHtml = "<p>No content found on the linked Notion page.</p>";
       } catch (e) {
         console.warn(`  Could not fetch ${page.name}:`, e.message);
