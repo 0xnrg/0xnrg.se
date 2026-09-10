@@ -30,28 +30,44 @@ const CSS = `
   --dim:     #666d80;
   --white:   #e8eaf0;
   --accent:  #56b6c2;
+  --accent-rgb: 86,182,194;
   --code-bg: #282c34;
 }
 html { zoom: 1.10; }
-body { background:var(--bg); color:var(--text); font-family:'IBM Plex Sans',sans-serif; font-weight:300; font-size:15px; line-height:1.75; }
-.shell { display:grid; grid-template-columns:260px 1fr; min-height:100vh; }
+body { background:var(--bg); color:var(--text); font-family:'IBM Plex Sans',sans-serif; font-weight:300; font-size:15px; line-height:1.75; position:relative; }
+/* Faint depth: a teal glow up top-left + a barely-there terminal grid. */
+body::before {
+  content:""; position:fixed; inset:0; z-index:0; pointer-events:none;
+  background:
+    radial-gradient(900px circle at 12% -8%, rgba(var(--accent-rgb),.07), transparent 60%),
+    linear-gradient(rgba(255,255,255,.016) 1px, transparent 1px) 0 0 / 100% 40px,
+    linear-gradient(90deg, rgba(255,255,255,.016) 1px, transparent 1px) 0 0 / 40px 100%;
+}
+.shell { display:grid; grid-template-columns:260px 1fr; min-height:100vh; position:relative; z-index:1; }
+::selection { background:rgba(var(--accent-rgb),.28); color:var(--white); }
+
+/* Blinking terminal cursor (logo + hero). */
+.cursor { color:var(--accent); font-weight:400; margin-left:1px; text-shadow:0 0 8px rgba(var(--accent-rgb),.7); animation:blink 1.1s steps(1) infinite; }
+@keyframes blink { 50% { opacity:0; } }
+@media (prefers-reduced-motion: reduce) { .cursor { animation:none; } }
 
 /* ── NAV ── */
 nav { border-right:1px solid var(--border); padding:40px 0; position:sticky; top:0; height:100vh; overflow-y:auto; background:var(--bg); }
 .nav-logo { padding:0 28px 36px; border-bottom:1px solid var(--border); margin-bottom:24px; }
 .nav-logo a { font-family:'IBM Plex Mono',monospace; font-size:15px; font-weight:500; color:var(--white); text-decoration:none; letter-spacing:.5px; }
 .nav-logo .tld { color:var(--muted); font-weight:300; }
-.nav-platform { display:block; padding:9px 28px; color:var(--dim); font-family:'IBM Plex Mono',monospace; font-size:10px; text-transform:uppercase; letter-spacing:2px; text-decoration:none; transition:color .15s; }
-.nav-platform:hover { color:var(--muted); }
-.nav-platform.active { color:var(--white); border-left:2px solid var(--accent); padding-left:26px; }
+.nav-platform, .nav-about { display:block; padding:9px 28px; color:var(--dim); font-family:'IBM Plex Mono',monospace; font-size:10px; text-transform:uppercase; letter-spacing:2px; text-decoration:none; border-left:2px solid transparent; transition:color .15s, border-color .15s, text-shadow .15s, background .15s; }
+.nav-platform::before, .nav-about::before { content:"▸"; display:inline-block; width:1em; margin-right:6px; color:var(--accent); opacity:0; transform:translateX(-5px); transition:opacity .15s, transform .15s; }
+.nav-platform:hover, .nav-about:hover { color:var(--muted); }
+.nav-platform:hover::before, .nav-about:hover::before,
+.nav-platform.active::before, .nav-about.active::before { opacity:1; transform:translateX(0); }
+.nav-platform.active, .nav-about.active { color:var(--white); border-left-color:var(--accent); padding-left:26px; text-shadow:0 0 12px rgba(var(--accent-rgb),.4); background:linear-gradient(90deg, rgba(var(--accent-rgb),.06), transparent 70%); }
 .nav-sep { height:1px; background:var(--border); margin:20px 28px; }
-.nav-about { display:block; padding:9px 28px; color:var(--dim); font-family:'IBM Plex Mono',monospace; font-size:10px; text-transform:uppercase; letter-spacing:2px; text-decoration:none; transition:color .15s; }
-.nav-about:hover { color:var(--muted); }
-.nav-about.active { color:var(--white); border-left:2px solid var(--accent); padding-left:26px; }
 
 /* ── MAIN ── */
 main { padding:52px 68px; max-width:900px; }
 .page-platform { font-family:'IBM Plex Mono',monospace; font-size:10.5px; color:var(--dim); text-transform:uppercase; letter-spacing:2px; margin-bottom:14px; }
+.page-platform::before { content:"$ "; color:var(--accent); }
 
 /* ── PAGE HEADER WITH ICON ── */
 .page-header { display:flex; align-items:center; gap:22px; margin-bottom:18px; }
@@ -67,12 +83,23 @@ h1 { font-family:'IBM Plex Mono',monospace; font-size:28px; font-weight:500; col
 .chip.insane { color:#c678dd; border-color:#3a1f48; }
 
 /* ── CONTENT TYPOGRAPHY ── */
-h2 { font-family:'IBM Plex Mono',monospace; font-size:13.5px; font-weight:500; color:var(--white); margin:40px 0 14px; padding-left:12px; border-left:2px solid var(--accent); }
+h2 { font-family:'IBM Plex Mono',monospace; font-size:13.5px; font-weight:500; color:var(--white); margin:40px 0 14px; }
+h2::before { content:"$ "; color:var(--accent); text-shadow:0 0 10px rgba(var(--accent-rgb),.5); }
 h3 { font-family:'IBM Plex Mono',monospace; font-size:11px; font-weight:500; color:var(--muted); margin:28px 0 10px; text-transform:uppercase; letter-spacing:2px; }
 p { color:var(--text); font-size:13px; margin-bottom:14px; }
 
 /* ── CODE ── */
-pre { border-radius:5px; padding:18px 22px; font-family:'IBM Plex Mono',monospace; font-size:12.5px; line-height:1.8; overflow-x:auto; margin:14px 0; border:1px solid var(--border2); background:var(--code-bg); }
+pre { position:relative; border-radius:5px; padding:40px 22px 18px; font-family:'IBM Plex Mono',monospace; font-size:12.5px; line-height:1.8; overflow-x:auto; margin:14px 0; border:1px solid var(--border2);
+  background-color:var(--code-bg);
+  background-image:
+    radial-gradient(circle at 21px 18px, #e06c75 0 4px, transparent 5px),
+    radial-gradient(circle at 39px 18px, #e5c07b 0 4px, transparent 5px),
+    radial-gradient(circle at 57px 18px, #98c379 0 4px, transparent 5px),
+    linear-gradient(var(--border2), var(--border2));
+  background-repeat:no-repeat;
+  background-size:auto,auto,auto,100% 1px;
+  background-position:0 0,0 0,0 0,0 35px;
+  background-attachment:scroll; }
 code { font-family:'IBM Plex Mono',monospace; font-size:12px; color:#abb2bf; background:var(--surface); border:1px solid var(--border2); padding:1px 6px; border-radius:3px; }
 pre code { background:none !important; border:none !important; padding:0 !important; font-size:12.5px; }
 .hljs { background:var(--code-bg) !important; }
@@ -82,8 +109,8 @@ hr { border:none; border-top:1px solid var(--border); margin:38px 0; }
 ul, ol { padding-left:22px; color:var(--text); font-size:13px; margin-bottom:14px; }
 li { padding:3px 0; }
 li code { font-size:11.5px; }
-a { color:var(--accent); text-decoration:none; opacity:.85; }
-a:hover { opacity:1; }
+a { color:var(--accent); text-decoration:none; opacity:.85; transition:opacity .15s, text-shadow .15s; }
+a:hover { opacity:1; text-shadow:0 0 8px rgba(var(--accent-rgb),.45); }
 img { max-width:100%; height:auto; display:block; border-radius:4px; margin:16px 0; }
 p { overflow-wrap:break-word; word-break:break-word; }
 
@@ -98,8 +125,9 @@ strong { color:var(--white); font-weight:500; }
 em { color:var(--muted); font-style:italic; }
 
 /* ── INDEX ROWS ── */
-.index-row { display:flex; align-items:center; gap:20px; padding:20px 0; border-top:1px solid var(--border); text-decoration:none; }
-.index-row:hover .index-name { color:var(--white); }
+.index-row { display:flex; align-items:center; gap:20px; padding:20px 0; border-top:1px solid var(--border); text-decoration:none; border-radius:6px; transition:background .18s, padding .18s, box-shadow .18s; }
+.index-row:hover { background:linear-gradient(90deg, rgba(var(--accent-rgb),.06), transparent 75%); padding-left:14px; box-shadow:inset 2px 0 0 var(--accent); }
+.index-row:hover .index-name { color:var(--white); text-shadow:0 0 12px rgba(var(--accent-rgb),.35); }
 .index-icon { flex-shrink:0; }
 .index-icon img { width:48px; height:48px; border-radius:50%; object-fit:cover; border:1px solid var(--border2); display:block; }
 .index-icon-placeholder { width:48px; height:48px; border-radius:50%; background:var(--surface); border:1px solid var(--border); }
@@ -133,8 +161,9 @@ em { color:var(--muted); font-style:italic; }
 .tab.active { color:var(--white); border-bottom-color:var(--accent); }
 
 /* ── BLOG INDEX ── */
-.blog-row { display:flex; flex-direction:column; padding:24px 0; border-top:1px solid var(--border); text-decoration:none; }
-.blog-row:hover .blog-title { color:var(--white); }
+.blog-row { display:flex; flex-direction:column; padding:24px 0; border-top:1px solid var(--border); text-decoration:none; border-radius:6px; transition:background .18s, padding .18s, box-shadow .18s; }
+.blog-row:hover { background:linear-gradient(90deg, rgba(var(--accent-rgb),.06), transparent 75%); padding-left:14px; box-shadow:inset 2px 0 0 var(--accent); }
+.blog-row:hover .blog-title { color:var(--white); text-shadow:0 0 12px rgba(var(--accent-rgb),.35); }
 .blog-title { font-family:'IBM Plex Mono',monospace; font-size:15px; color:var(--text); transition:color .15s; margin-bottom:8px; }
 .blog-date { font-family:'IBM Plex Mono',monospace; font-size:10.5px; color:var(--dim); margin-bottom:10px; }
 .blog-excerpt { font-size:13px; color:var(--muted); line-height:1.65; }
@@ -173,7 +202,7 @@ footer { border-top:1px solid var(--border); margin-top:64px; padding:28px 0 8px
   .nav-overlay.nav-open { display:block; }
   main { padding:28px 20px 52px; }
   h1 { font-size:22px; }
-  pre { padding:14px 16px; font-size:11.5px; overflow-x:auto; }
+  pre { padding:36px 16px 14px; font-size:11.5px; overflow-x:auto; }
   .lock-card { padding:22px 20px; }
   table { font-size:11.5px; }
   th, td { padding:7px 8px; }
@@ -214,7 +243,7 @@ const MOBILE_JS = `<script>
 function buildMobileTopbar(depth) {
   const prefix = pathPrefix(depth);
   return `<div class="mobile-topbar">
-  <a href="${prefix}" class="mobile-logo">0xnrg<span class="tld">.se</span></a>
+  <a href="${prefix}" class="mobile-logo">0xnrg<span class="tld">.se</span><span class="cursor">█</span></a>
   <button id="mob-hamburger" class="hamburger" aria-label="Toggle navigation">
     <span></span><span></span><span></span>
   </button>
@@ -452,7 +481,7 @@ const PLATFORMS = [
 function buildNav(depth, activePlatform) {
   const prefix = pathPrefix(depth);
 
-  let html = `<nav>\n<div class="nav-logo"><a href="${prefix}">0xnrg<span class="tld">.se</span></a></div>\n`;
+  let html = `<nav>\n<div class="nav-logo"><a href="${prefix}">0xnrg<span class="tld">.se</span><span class="cursor">█</span></a></div>\n`;
 
   for (const p of PLATFORMS) {
     const href = `${prefix}${p.slug}/`;

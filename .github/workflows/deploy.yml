@@ -1,6 +1,8 @@
 name: Sync Notion → Deploy
 
 on:
+  push:
+    branches: [main]        # deploy automatically on every push to main
   schedule:
     - cron: "0 3 * * *"   # runs every night at 03:00 UTC
   workflow_dispatch:        # lets you trigger manually from GitHub UI
